@@ -8,6 +8,8 @@ function AppRoutes() {
   const checkSession = useAuthStore((s) => s.checkSession);
   const isLoading = useAuthStore((s) => s.isLoading);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
 
   useEffect(() => {
     checkSession();
@@ -28,9 +30,18 @@ function AppRoutes() {
         element={
           isAuthenticated ? (
             <div className="min-h-screen flex items-center justify-center bg-surface">
-              <p className="text-gray-500">
-                Diwana — logged in as {useAuthStore.getState().user?.firstName}
-              </p>
+              <div className="text-center space-y-4">
+                <p className="text-gray-500">
+                  Diwana — logged in as {user?.firstName} {user?.lastName}
+                  {user?.companyName && <span className="text-gray-400"> ({user.companyName})</span>}
+                </p>
+                <button
+                  onClick={() => logout()}
+                  className="px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm hover:bg-red-200 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           ) : (
             <Navigate to="/login" replace />

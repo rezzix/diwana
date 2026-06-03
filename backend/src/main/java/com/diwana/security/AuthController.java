@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,14 +26,16 @@ import java.util.List;
 @RequestMapping("/api/auth")
 public class AuthController {
 
+    private final AuthenticationManager authenticationManager;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final CustomUserDetailsService userDetailsService;
     private final String mode;
 
-    public AuthController(UserRepository userRepository, UserMapper userMapper,
+    public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository, UserMapper userMapper,
                           CustomUserDetailsService userDetailsService,
                           @Value("${diwana.mode:prod}") String mode) {
+        this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.userDetailsService = userDetailsService;
@@ -56,7 +59,10 @@ public class AuthController {
             authentication = new UsernamePasswordAuthenticationToken(
                     userDetails, userDetails.getPassword(), userDetails.getAuthorities());
         } else {
-            throw new BadRequestException("Production login not yet implemented");
+            // Production: validate credentials via AuthenticationManager
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.username(), request.password())
+            );
         }
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -91,8 +97,12 @@ public class AuthController {
     public record DevUserDto(String username, String displayName, String role, String company) {}
 
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<String>> logout() {
+    public ResponseEntity<ApiResponse<String>> logout(HttpServletRequest httpRequest) {
         SecurityContextHolder.clearContext();
+        HttpSession session = httpRequest.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
         return ResponseEntity.ok(ApiResponse.of("Logged out"));
     }
 
