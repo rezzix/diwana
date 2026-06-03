@@ -53,6 +53,17 @@ public class DeclarationController {
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(declarationService.getById(id))));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('DECLARANT')")
+    public ResponseEntity<ApiResponse<DeclarationDto>> update(
+            @PathVariable Long id,
+            @Valid @RequestBody DeclarationDto.UpdateRequest request,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        Declaration updated = declarationService.update(id, request, userId);
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(updated)));
+    }
+
     @GetMapping("/prefill")
     @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
     public PrefillData prefill(@AuthenticationPrincipal UserDetails currentUser) {

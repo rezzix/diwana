@@ -107,4 +107,66 @@ public class DeclarationService {
         return declarationRepository.findById(id)
                 .orElseThrow(() -> new com.diwana.common.exception.EntityNotFoundException("Declaration", id));
     }
+
+    @Transactional
+    public Declaration update(Long id, DeclarationDto.UpdateRequest request, Long userId) {
+        Declaration declaration = getById(id);
+
+        if (declaration.getStatus() != Declaration.Status.DRAFT) {
+            throw new BadRequestException("Only draft declarations can be edited");
+        }
+
+        User declarant = userService.getById(userId);
+        if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
+            throw new BadRequestException("You can only edit your own declarations");
+        }
+
+        // Clear existing line items and replace
+        declaration.getLineItems().clear();
+
+        // Resolve tariff rates
+        BigDecimal dutyRate = request.dutyRate();
+        BigDecimal vatRate = request.vatRate();
+
+        if (dutyRate == null || vatRate == null) {
+            String hsChapter = request.hsCode().length() >= 4 ? request.hsCode().substring(0, 4) : request.hsCode();
+            TariffRate rate = tariffRateRepository.findByHsCodeStartingWith(hsChapter);
+            if (rate != null) {
+                if (dutyRate == null) dutyRate = rate.getDutyRate();
+                if (vatRate == null) vatRate = rate.getVatRate();
+            } else {
+                if (dutyRate == null) dutyRate = BigDecimal.ZERO;
+                if (vatRate == null) vatRate = BigDecimal.ZERO;
+            }
+        }
+
+        BigDecimal totalValue = request.totalValue();
+        BigDecimal dutyAmount = totalValue.multiply(dutyRate).divide(BigDecimal.valueOf(100));
+        BigDecimal vatAmount = totalValue.multiply(vatRate).divide(BigDecimal.valueOf(100));
+
+        declaration.setCustomsOffice(request.customsOffice());
+        declaration.setTotalDuty(dutyAmount);
+        declaration.setTotalVat(vatAmount);
+        declaration.setTotalValue(totalValue);
+        declaration.setNotes(request.notes());
+
+        DeclarationLineItem item = new DeclarationLineItem();
+        item.setDeclaration(declaration);
+        item.setHsCode(request.hsCode());
+        item.setDescription(request.description());
+        item.setCountryOfOrigin(request.countryOfOrigin());
+        item.setQuantity(request.quantity());
+        item.setUnit(request.unit());
+        item.setUnitPrice(request.unitPrice());
+        item.setTotalValue(totalValue);
+        item.setDutyRate(dutyRate);
+        item.setDutyAmount(dutyAmount);
+        item.setVatRate(vatRate);
+        item.setVatAmount(vatAmount);
+        item.setCurrency(request.currency() != null ? request.currency() : "MAD");
+
+        declaration.getLineItems().add(item);
+
+        return declarationRepository.save(declaration);
+    }
 }
