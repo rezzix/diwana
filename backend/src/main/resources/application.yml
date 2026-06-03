@@ -1,0 +1,44 @@
+diwana:
+  mode: dev
+  version: 0.1.0
+  build: ''
+
+spring:
+  application:
+    name: diwana
+
+  datasource:
+    url: jdbc:h2:file:./data/diwana-db
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  sql:
+    init:
+      mode: always
+
+server:
+  port: 8080
+
+logging:
+  level:
+    com.diwana: DEBUG

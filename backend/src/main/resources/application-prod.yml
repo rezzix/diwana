@@ -1,0 +1,24 @@
+diwana:
+  mode: prod
+
+spring:
+  datasource:
+    url: ${DIWANA_DB_URL}
+    driver-class-name: org.postgresql.Driver
+    username: ${DIWANA_DB_USERNAME}
+    password: ${DIWANA_DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  h2:
+    console:
+      enabled: false
+
+  sql:
+    init:
+      mode: never
