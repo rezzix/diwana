@@ -1,0 +1,43 @@
+# Build output
+backend/build/
+frontend/dist/
+build/
+
+# Gradle
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
+
+# Node
+frontend/node_modules/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Claude Code
+.claude/
+
+# H2 database files
+*.h2.db
+*.mv.db
+*.trace.db
+
+# Lock files from dependencies (keep package-lock.json, ignore others)
+frontend/yarn.lock
+frontend/pnpm-lock.yaml
