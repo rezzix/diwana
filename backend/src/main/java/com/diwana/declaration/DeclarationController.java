@@ -1,15 +1,18 @@
 package com.diwana.declaration;
 
+import com.diwana.common.dto.ApiResponse;
 import com.diwana.company.Company;
 import com.diwana.company.CompanyService;
 import com.diwana.security.AuthHelper;
 import com.diwana.tariff.TariffRate;
 import com.diwana.tariff.TariffRateRepository;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -17,18 +20,41 @@ import java.util.List;
 @RequestMapping("/api/declarations")
 public class DeclarationController {
 
+    private final DeclarationService declarationService;
+    private final DeclarationMapper declarationMapper;
     private final CompanyService companyService;
     private final TariffRateRepository tariffRateRepository;
     private final AuthHelper authHelper;
 
-    public DeclarationController(CompanyService companyService, TariffRateRepository tariffRateRepository,
+    public DeclarationController(DeclarationService declarationService, DeclarationMapper declarationMapper,
+                                  CompanyService companyService, TariffRateRepository tariffRateRepository,
                                   AuthHelper authHelper) {
+        this.declarationService = declarationService;
+        this.declarationMapper = declarationMapper;
         this.companyService = companyService;
         this.tariffRateRepository = tariffRateRepository;
         this.authHelper = authHelper;
     }
 
+    @PostMapping
+    @PreAuthorize("hasRole('DECLARANT')")
+    public ResponseEntity<ApiResponse<DeclarationDto>> create(
+            @Valid @RequestBody DeclarationDto.CreateRequest request,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        Declaration created = declarationService.create(request, userId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(declarationMapper.toDto(created)));
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DECLARANT', 'CONTROLLER')")
+    public ResponseEntity<ApiResponse<DeclarationDto>> get(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(declarationService.getById(id))));
+    }
+
     @GetMapping("/prefill")
+    @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
     public PrefillData prefill(@AuthenticationPrincipal UserDetails currentUser) {
         Long companyId = authHelper.getCurrentCompanyId(currentUser);
         Company company = companyId != null ? companyService.getById(companyId) : null;

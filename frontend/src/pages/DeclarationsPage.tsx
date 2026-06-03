@@ -36,6 +36,12 @@ export default function DeclarationsPage() {
             <span className="text-gray-300">|</span>
             <h1 className="text-lg font-bold text-gray-900">Declarations</h1>
           </div>
+          <Link
+            to="/declarations/new"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors"
+          >
+            + New Declaration
+          </Link>
         </div>
       </header>
 
