@@ -3,6 +3,7 @@ package com.diwana.declaration;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
@@ -24,7 +25,7 @@ public record DeclarationDto(
         String createdAt
 ) {
     public record CreateRequest(
-            @NotBlank @Size(max = 12) String hsCode,
+            @NotBlank @Pattern(regexp = "^\\d{4}(\\.\\d{2,6})?$", message = "HS code must be 4 digits optionally followed by a dot and 2-6 digits (e.g. 8471.30)") String hsCode,
             @NotBlank String description,
             String countryOfOrigin,
             @NotNull @Positive BigDecimal quantity,
