@@ -6,6 +6,7 @@ import LoginPage from '@/pages/LoginPage';
 import AdminPage from '@/pages/AdminPage';
 import CompanyProfilePage from '@/pages/CompanyProfilePage';
 import DeclarationsPage from '@/pages/DeclarationsPage';
+import CreateDeclarationPage from '@/pages/CreateDeclarationPage';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import RoleGuard from '@/components/guards/RoleGuard';
@@ -128,6 +129,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/declarations/new"
+        element={
+          <AuthGuard>
+            <RoleGuard roles={['DECLARANT']}>
+              <CreateDeclarationPage />
+            </RoleGuard>
+          </AuthGuard>
+        }
+      />
+      <Route
         path="/declarations"
         element={
           <AuthGuard>
@@ -136,6 +147,10 @@ function AppRoutes() {
             </RoleGuard>
           </AuthGuard>
         }
+      />
+      <Route
+        path="/declarations/:id"
+        element={<AuthGuard><RoleGuard roles={['DECLARANT', 'CONTROLLER', 'ADMIN']}><DeclarationsPage /></RoleGuard></AuthGuard>}
       />
       <Route
         path="/control"
