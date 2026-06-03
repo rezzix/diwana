@@ -5,6 +5,7 @@ import LoadingScreen from '@/components/common/LoadingScreen';
 import LoginPage from '@/pages/LoginPage';
 import AdminPage from '@/pages/AdminPage';
 import CompanyProfilePage from '@/pages/CompanyProfilePage';
+import DeclarationsPage from '@/pages/DeclarationsPage';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import RoleGuard from '@/components/guards/RoleGuard';
@@ -71,16 +72,6 @@ function HomePage() {
           </Link>
         </div>
       </main>
-    </div>
-  );
-}
-
-function DeclarationsPage() {
-  return (
-    <div className="min-h-screen bg-surface p-6">
-      <Link to="/" className="text-sm text-primary-600 hover:underline">&larr; Back</Link>
-      <h1 className="text-2xl font-bold text-gray-900 mt-4">Declarations</h1>
-      <p className="text-gray-500 mt-2">Manage customs declarations — DECLARANT only.</p>
     </div>
   );
 }
