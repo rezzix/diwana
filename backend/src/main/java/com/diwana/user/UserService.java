@@ -5,6 +5,9 @@ import com.diwana.common.exception.DuplicateKeyException;
 import com.diwana.common.exception.EntityNotFoundException;
 import com.diwana.company.Company;
 import com.diwana.company.CompanyRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,24 @@ public class UserService {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.companyRepository = companyRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<User> list(String search, User.Role role, Boolean active, int page, int size, String sort) {
+        String[] sortParts = sort.split(",");
+        Sort.Direction direction = Sort.Direction.fromString(sortParts.length > 1 ? sortParts[1] : "desc");
+        PageRequest pageRequest = PageRequest.of(page, size, direction, sortParts[0]);
+
+        if (role != null) {
+            return userRepository.findByRole(role, pageRequest);
+        }
+        if (active != null) {
+            return userRepository.findByActive(active, pageRequest);
+        }
+        if (search != null && !search.isBlank()) {
+            return userRepository.search(search, pageRequest);
+        }
+        return userRepository.findAll(pageRequest);
     }
 
     @Transactional
@@ -43,7 +64,6 @@ public class UserService {
             throw new BadRequestException("Cannot create admin users via this endpoint");
         }
 
-        // DECLARANT must have a company, CONTROLLER must not
         if (role == User.Role.DECLARANT && request.companyId() == null) {
             throw new BadRequestException("Declarant users must be assigned to a company");
         }
@@ -66,5 +86,18 @@ public class UserService {
         }
 
         return userRepository.save(user);
+    }
+
+    @Transactional(readOnly = true)
+    public User getById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User", id));
+    }
+
+    @Transactional
+    public void deactivate(Long id) {
+        User user = getById(id);
+        user.setActive(false);
+        userRepository.save(user);
     }
 }
