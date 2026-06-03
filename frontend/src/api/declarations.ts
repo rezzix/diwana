@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPost, apiPut } from './client';
 
 export interface CompanyPrefill {
   name: string;
@@ -75,6 +75,21 @@ export interface CreateDeclarationRequest {
   notes?: string;
 }
 
+export interface UpdateDeclarationRequest {
+  hsCode: string;
+  description: string;
+  countryOfOrigin?: string;
+  quantity: number;
+  unit?: string;
+  unitPrice: number;
+  totalValue: number;
+  dutyRate?: number;
+  vatRate?: number;
+  currency?: string;
+  customsOffice?: string;
+  notes?: string;
+}
+
 export async function getPrefillData(): Promise<PrefillData> {
   return apiGet<PrefillData>('/declarations/prefill');
 }
@@ -85,4 +100,8 @@ export async function createDeclaration(request: CreateDeclarationRequest): Prom
 
 export async function getDeclaration(id: number): Promise<DeclarationDto> {
   return apiGet<DeclarationDto>(`/declarations/${id}`);
+}
+
+export async function updateDeclaration(id: number, request: UpdateDeclarationRequest): Promise<DeclarationDto> {
+  return apiPut<DeclarationDto>(`/declarations/${id}`, request);
 }
