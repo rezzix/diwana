@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore';
 import LoadingScreen from '@/components/common/LoadingScreen';
 import LoginPage from '@/pages/LoginPage';
 import AdminPage from '@/pages/AdminPage';
+import CompanyProfilePage from '@/pages/CompanyProfilePage';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import RoleGuard from '@/components/guards/RoleGuard';
@@ -39,7 +40,14 @@ function HomePage() {
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-500">Welcome to Diwana customs declaration management.</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Link
+            to="/company-profile"
+            className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+          >
+            <h2 className="font-semibold text-gray-900">Company Profile</h2>
+            <p className="text-sm text-gray-500 mt-1">DECLARANT / CONTROLLER</p>
+          </Link>
           <Link
             to="/admin"
             className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
@@ -107,6 +115,14 @@ function AppRoutes() {
         element={
           <AuthGuard>
             <HomePage />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/company-profile"
+        element={
+          <AuthGuard>
+            <CompanyProfilePage />
           </AuthGuard>
         }
       />
