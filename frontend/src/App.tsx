@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import LoadingScreen from '@/components/common/LoadingScreen';
 import LoginPage from '@/pages/LoginPage';
+import AdminPage from '@/pages/AdminPage';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import RoleGuard from '@/components/guards/RoleGuard';
@@ -66,16 +67,6 @@ function HomePage() {
   );
 }
 
-function AdminPanel() {
-  return (
-    <div className="min-h-screen bg-surface p-6">
-      <Link to="/" className="text-sm text-primary-600 hover:underline">&larr; Back</Link>
-      <h1 className="text-2xl font-bold text-gray-900 mt-4">Admin Panel</h1>
-      <p className="text-gray-500 mt-2">User management and configuration — ADMIN only.</p>
-    </div>
-  );
-}
-
 function DeclarationsPage() {
   return (
     <div className="min-h-screen bg-surface p-6">
@@ -124,7 +115,7 @@ function AppRoutes() {
         element={
           <AuthGuard>
             <AdminGuard>
-              <AdminPanel />
+              <AdminPage />
             </AdminGuard>
           </AuthGuard>
         }
