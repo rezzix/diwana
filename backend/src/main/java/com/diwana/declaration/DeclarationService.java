@@ -221,5 +221,22 @@ public class DeclarationService {
         declarationRepository.delete(declaration);
     }
 
+    @Transactional
+    public Declaration submit(Long id, Long userId) {
+        Declaration declaration = getById(id);
+        if (declaration.getStatus() != Declaration.Status.DRAFT) {
+            throw new BadRequestException("Only draft declarations can be submitted");
+        }
+        User declarant = userService.getById(userId);
+        if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
+            throw new BadRequestException("You can only submit your own declarations");
+        }
+        if (declaration.getLineItems().isEmpty()) {
+            throw new BadRequestException("Cannot submit a declaration without line items");
+        }
+        declaration.setStatus(Declaration.Status.SUBMITTED);
+        return declarationRepository.save(declaration);
+    }
+
     private record TariffRateResolver(BigDecimal dutyRate, BigDecimal vatRate) {}
 }

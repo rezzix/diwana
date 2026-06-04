@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { getDeclaration, deleteDeclaration, type DeclarationDto } from '@/api/declarations';
+import { getDeclaration, deleteDeclaration, submitDeclaration, type DeclarationDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -52,6 +52,7 @@ export default function DeclarationDetailPage() {
   const [uploadType, setUploadType] = useState('COMMERCIAL_INVOICE');
   const [uploading, setUploading] = useState(false);
   const [viewingAttachment, setViewingAttachment] = useState<AttachmentDto | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const isOwner = user?.role === 'DECLARANT';
 
@@ -158,6 +159,21 @@ export default function DeclarationDetailPage() {
     }
   };
 
+  const handleSubmitDecl = async () => {
+    if (!id || !decl) return;
+    if (!confirm(`Submit declaration ${decl.declarationNumber} for customs review? This cannot be undone.`)) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      const updated = await submitDeclaration(Number(id));
+      setDecl(updated);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to submit declaration');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -206,6 +222,10 @@ export default function DeclarationDetailPage() {
           <div className="flex gap-2">
             {isOwner && decl.status === 'DRAFT' && (
               <>
+                <button onClick={handleSubmitDecl} disabled={submitting}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
+                  {submitting ? 'Submitting...' : 'Submit for Review'}
+                </button>
                 <Link to={`/declarations/${id}/edit`}
                   className="px-3 py-1.5 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
                   Edit
