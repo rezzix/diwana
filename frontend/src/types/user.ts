@@ -8,6 +8,8 @@ export interface UserDto {
   active: boolean;
   companyId: number | null;
   companyName: string | null;
+  customsOfficeId: number | null;
+  customsOfficeName: string | null;
 }
 
 export type UserRole = 'ADMIN' | 'DECLARANT' | 'CONTROLLER';

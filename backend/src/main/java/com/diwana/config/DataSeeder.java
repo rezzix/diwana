@@ -253,27 +253,31 @@ public class DataSeeder implements CommandLineRunner {
         Company afl = companyRepository.findByKey("AFL").orElse(null);
         Company clg = companyRepository.findByKey("CLG").orElse(null);
 
+        CustomsOffice casaPort = customsOfficeRepository.findByCode("CASA-P").orElse(null);
+        CustomsOffice casaAirport = customsOfficeRepository.findByCode("CASA-A").orElse(null);
+        CustomsOffice tangerMed = customsOfficeRepository.findByCode("TANGER-P").orElse(null);
+
         List<User> users = List.of(
             // Admin
-            createUser("admin", "admin@diwana.ma", "Admin", "User", User.Role.ADMIN, null),
+            createUser("admin", "admin@diwana.ma", "Admin", "User", User.Role.ADMIN, null, null),
             // SMIE declarants
-            createUser("ahmed", "ahmed@smie.ma", "Ahmed", "Benali", User.Role.DECLARANT, smie),
-            createUser("fatima", "fatima@smie.ma", "Fatima", "Zahra", User.Role.DECLARANT, smie),
+            createUser("ahmed", "ahmed@smie.ma", "Ahmed", "Benali", User.Role.DECLARANT, smie, null),
+            createUser("fatima", "fatima@smie.ma", "Fatima", "Zahra", User.Role.DECLARANT, smie, null),
             // AFL declarants
-            createUser("youssef", "youssef@afl.ma", "Youssef", "El Amrani", User.Role.DECLARANT, afl),
-            createUser("nadia", "nadia@afl.ma", "Nadia", "Bouazza", User.Role.DECLARANT, afl),
+            createUser("youssef", "youssef@afl.ma", "Youssef", "El Amrani", User.Role.DECLARANT, afl, null),
+            createUser("nadia", "nadia@afl.ma", "Nadia", "Bouazza", User.Role.DECLARANT, afl, null),
             // CLG declarants
-            createUser("karim", "karim@clg.ma", "Karim", "Ouazzani", User.Role.DECLARANT, clg),
-            createUser("samira", "samira@clg.ma", "Samira", "Benjelloun", User.Role.DECLARANT, clg),
-            // Controllers (no company — they are customs officers)
-            createUser("hicham", "hicham@douane.gov.ma", "Hicham", "Tazi", User.Role.CONTROLLER, null),
-            createUser("latifa", "latifa@douane.gov.ma", "Latifa", "El Fassi", User.Role.CONTROLLER, null)
+            createUser("karim", "karim@clg.ma", "Karim", "Ouazzani", User.Role.DECLARANT, clg, null),
+            createUser("samira", "samira@clg.ma", "Samira", "Benjelloun", User.Role.DECLARANT, clg, null),
+            // Controllers (no company — they are customs officers assigned to offices)
+            createUser("hicham", "hicham@douane.gov.ma", "Hicham", "Tazi", User.Role.CONTROLLER, null, casaPort),
+            createUser("latifa", "latifa@douane.gov.ma", "Latifa", "El Fassi", User.Role.CONTROLLER, null, casaAirport)
         );
 
         userRepository.saveAll(users);
     }
 
-    private User createUser(String username, String email, String firstName, String lastName, User.Role role, Company company) {
+    private User createUser(String username, String email, String firstName, String lastName, User.Role role, Company company, CustomsOffice customsOffice) {
         User user = new User();
         user.setUsername(username);
         user.setEmail(email);
@@ -281,6 +285,7 @@ public class DataSeeder implements CommandLineRunner {
         user.setLastName(lastName);
         user.setRole(role);
         user.setCompany(company);
+        user.setCustomsOffice(customsOffice);
         user.setPasswordHash(passwordEncoder.encode("password123"));
         user.setActive(true);
         return user;

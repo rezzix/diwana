@@ -3,6 +3,7 @@ package com.diwana.declaration;
 import com.diwana.common.dto.ApiResponse;
 import com.diwana.company.Company;
 import com.diwana.company.CompanyService;
+import com.diwana.customsoffice.CustomsOfficeRepository;
 import com.diwana.security.AuthHelper;
 import com.diwana.tariff.TariffRate;
 import com.diwana.tariff.TariffRateRepository;
@@ -24,15 +25,17 @@ public class DeclarationController {
     private final DeclarationMapper declarationMapper;
     private final CompanyService companyService;
     private final TariffRateRepository tariffRateRepository;
+    private final CustomsOfficeRepository customsOfficeRepository;
     private final AuthHelper authHelper;
 
     public DeclarationController(DeclarationService declarationService, DeclarationMapper declarationMapper,
                                   CompanyService companyService, TariffRateRepository tariffRateRepository,
-                                  AuthHelper authHelper) {
+                                  CustomsOfficeRepository customsOfficeRepository, AuthHelper authHelper) {
         this.declarationService = declarationService;
         this.declarationMapper = declarationMapper;
         this.companyService = companyService;
         this.tariffRateRepository = tariffRateRepository;
+        this.customsOfficeRepository = customsOfficeRepository;
         this.authHelper = authHelper;
     }
 
@@ -46,8 +49,20 @@ public class DeclarationController {
 
     @GetMapping("/pending-review")
     @PreAuthorize("hasRole('CONTROLLER')")
-    public ResponseEntity<ApiResponse<List<DeclarationDto>>> listPendingReview() {
-        List<Declaration> declarations = declarationService.listPendingReview();
+    public ResponseEntity<ApiResponse<List<DeclarationDto>>> listPendingReview(@AuthenticationPrincipal UserDetails currentUser) {
+        Long customsOfficeId = authHelper.getCurrentCustomsOfficeId(currentUser);
+        List<Declaration> declarations;
+        if (customsOfficeId != null) {
+            // Controller is assigned to a specific office — filter by it
+            com.diwana.customsoffice.CustomsOffice office = customsOfficeRepository.findById(customsOfficeId).orElse(null);
+            if (office != null) {
+                declarations = declarationService.listPendingReviewByOffice(office.getName());
+            } else {
+                declarations = declarationService.listPendingReview();
+            }
+        } else {
+            declarations = declarationService.listPendingReview();
+        }
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDtoList(declarations)));
     }
 

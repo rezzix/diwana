@@ -29,13 +29,15 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
 
         Long companyId = user.getCompany() != null ? user.getCompany().getId() : null;
+        Long customsOfficeId = user.getCustomsOffice() != null ? user.getCustomsOffice().getId() : null;
 
         return new CustomUserDetails(
                 user.getId(),
                 user.getUsername(),
                 user.getPasswordHash(),
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
-                companyId
+                companyId,
+                customsOfficeId
         );
     }
 }

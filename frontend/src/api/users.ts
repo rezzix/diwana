@@ -9,6 +9,7 @@ export interface CreateUserRequest {
   lastName: string;
   role: 'DECLARANT' | 'CONTROLLER';
   companyId?: number | null;
+  customsOfficeId?: number | null;
 }
 
 export async function listUsers(params?: Record<string, string | number>) {

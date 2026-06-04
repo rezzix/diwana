@@ -28,6 +28,13 @@ public class AuthHelper {
         return null;
     }
 
+    public Long getCurrentCustomsOfficeId(UserDetails currentUser) {
+        if (currentUser instanceof CustomUserDetails details) {
+            return details.getCustomsOfficeId();
+        }
+        return null;
+    }
+
     public boolean isGlobalUser(UserDetails currentUser) {
         return getCurrentCompanyId(currentUser) == null;
     }
