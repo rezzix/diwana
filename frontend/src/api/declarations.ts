@@ -59,6 +59,7 @@ export interface DeclarationDto {
   totalValue: number | null;
   notes: string | null;
   rejectionReason: string | null;
+  infoRequestNote: string | null;
   lineItems: LineItemDto[];
   createdAt: string;
 }
@@ -126,4 +127,8 @@ export async function approveDeclaration(id: number): Promise<DeclarationDto> {
 
 export async function resubmitDeclaration(id: number): Promise<DeclarationDto> {
   return apiPost<DeclarationDto>(`/declarations/${id}/resubmit`);
+}
+
+export async function requestInfoDeclaration(id: number, note: string): Promise<DeclarationDto> {
+  return apiPost<DeclarationDto>(`/declarations/${id}/request-info`, { note });
 }

@@ -98,15 +98,16 @@ public class DeclarationService {
     @Transactional(readOnly = true)
     public List<Declaration> listPendingReview() {
         return declarationRepository.findByStatusInOrderByCreatedAtAsc(
-                List.of(Declaration.Status.SUBMITTED, Declaration.Status.UNDER_REVIEW));
+                List.of(Declaration.Status.SUBMITTED, Declaration.Status.UNDER_REVIEW, Declaration.Status.INFO_REQUESTED));
     }
 
     @Transactional
     public Declaration update(Long id, DeclarationDto.UpdateRequest request, Long userId) {
         Declaration declaration = getById(id);
 
-        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED) {
-            throw new BadRequestException("Only draft or rejected declarations can be edited");
+        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED
+                && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only draft, rejected, or info-requested declarations can be edited");
         }
 
         User declarant = userService.getById(userId);
@@ -139,10 +140,11 @@ public class DeclarationService {
         declaration.setTotalVat(totalVat);
         declaration.setTotalValue(totalValue);
 
-        // If editing a rejected declaration, reset to draft and clear rejection reason
-        if (declaration.getStatus() == Declaration.Status.REJECTED) {
+        // If editing a rejected or info-requested declaration, reset to draft and clear notes
+        if (declaration.getStatus() == Declaration.Status.REJECTED || declaration.getStatus() == Declaration.Status.INFO_REQUESTED) {
             declaration.setStatus(Declaration.Status.DRAFT);
             declaration.setRejectionReason(null);
+            declaration.setInfoRequestNote(null);
         }
 
         return declarationRepository.save(declaration);
@@ -223,30 +225,47 @@ public class DeclarationService {
     @Transactional
     public Declaration reject(Long id, String reason) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.SUBMITTED && declaration.getStatus() != Declaration.Status.UNDER_REVIEW) {
-            throw new BadRequestException("Only submitted or under-review declarations can be rejected");
+        if (declaration.getStatus() != Declaration.Status.SUBMITTED
+                && declaration.getStatus() != Declaration.Status.UNDER_REVIEW
+                && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only submitted, under-review, or info-requested declarations can be rejected");
         }
         declaration.setStatus(Declaration.Status.REJECTED);
         declaration.setRejectionReason(reason);
+        declaration.setInfoRequestNote(null);
         return declarationRepository.save(declaration);
     }
 
     @Transactional
     public Declaration approve(Long id) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.SUBMITTED && declaration.getStatus() != Declaration.Status.UNDER_REVIEW) {
-            throw new BadRequestException("Only submitted or under-review declarations can be approved");
+        if (declaration.getStatus() != Declaration.Status.SUBMITTED
+                && declaration.getStatus() != Declaration.Status.UNDER_REVIEW
+                && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only submitted, under-review, or info-requested declarations can be approved");
         }
         declaration.setStatus(Declaration.Status.APPROVED);
         declaration.setRejectionReason(null);
+        declaration.setInfoRequestNote(null);
+        return declarationRepository.save(declaration);
+    }
+
+    @Transactional
+    public Declaration requestInfo(Long id, String note) {
+        Declaration declaration = getById(id);
+        if (declaration.getStatus() != Declaration.Status.SUBMITTED && declaration.getStatus() != Declaration.Status.UNDER_REVIEW) {
+            throw new BadRequestException("Only submitted or under-review declarations can be flagged for additional info");
+        }
+        declaration.setStatus(Declaration.Status.INFO_REQUESTED);
+        declaration.setInfoRequestNote(note);
         return declarationRepository.save(declaration);
     }
 
     @Transactional
     public Declaration resubmit(Long id, Long userId) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.REJECTED) {
-            throw new BadRequestException("Only rejected declarations can be resubmitted");
+        if (declaration.getStatus() != Declaration.Status.REJECTED && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only rejected or info-requested declarations can be resubmitted");
         }
         User declarant = userService.getById(userId);
         if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
@@ -254,14 +273,16 @@ public class DeclarationService {
         }
         declaration.setStatus(Declaration.Status.DRAFT);
         declaration.setRejectionReason(null);
+        declaration.setInfoRequestNote(null);
         return declarationRepository.save(declaration);
     }
 
     @Transactional
     public void delete(Long id, Long userId) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED) {
-            throw new BadRequestException("Only draft or rejected declarations can be deleted");
+        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED
+                && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only draft, rejected, or info-requested declarations can be deleted");
         }
         User declarant = userService.getById(userId);
         if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
