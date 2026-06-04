@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, type DeclarationDto } from '@/api/declarations';
+import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, getAuditLog, type DeclarationDto, type AuditLogDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -47,6 +47,7 @@ export default function DeclarationDetailPage() {
   const user = useAuthStore((s) => s.user);
   const [decl, setDecl] = useState<DeclarationDto | null>(null);
   const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditLogDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [uploadType, setUploadType] = useState('COMMERCIAL_INVOICE');
@@ -70,8 +71,12 @@ export default function DeclarationDetailPage() {
     try {
       const d = await getDeclaration(Number(id));
       setDecl(d);
-      const atts = await getAttachments(Number(id));
+      const [atts, logs] = await Promise.all([
+        getAttachments(Number(id)),
+        getAuditLog(Number(id)),
+      ]);
       setAttachments(atts);
+      setAuditLog(logs);
     } catch {
       setError('Failed to load declaration');
     } finally {
@@ -194,6 +199,7 @@ export default function DeclarationDetailPage() {
     try {
       const updated = await submitDeclaration(Number(id));
       setDecl(updated);
+      getAuditLog(Number(id)).then(setAuditLog).catch(() => {});
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to submit declaration');
     } finally {
@@ -209,6 +215,7 @@ export default function DeclarationDetailPage() {
     try {
       const updated = await resubmitDeclaration(Number(id));
       setDecl(updated);
+      getAuditLog(Number(id)).then(setAuditLog).catch(() => {});
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to resubmit declaration');
     } finally {
@@ -223,6 +230,7 @@ export default function DeclarationDetailPage() {
     try {
       const updated = await rejectDeclaration(Number(id), rejectReason.trim());
       setDecl(updated);
+      getAuditLog(Number(id)).then(setAuditLog).catch(() => {});
       setRejectReason('');
       setShowRejectDialog(false);
     } catch (err: unknown) {
@@ -240,6 +248,7 @@ export default function DeclarationDetailPage() {
     try {
       const updated = await approveDeclaration(Number(id));
       setDecl(updated);
+      getAuditLog(Number(id)).then(setAuditLog).catch(() => {});
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to approve declaration');
     } finally {
@@ -254,6 +263,7 @@ export default function DeclarationDetailPage() {
     try {
       const updated = await requestInfoDeclaration(Number(id), infoNote.trim());
       setDecl(updated);
+      getAuditLog(Number(id)).then(setAuditLog).catch(() => {});
       setInfoNote('');
       setShowInfoDialog(false);
     } catch (err: unknown) {
@@ -571,6 +581,64 @@ export default function DeclarationDetailPage() {
             </table>
           )}
         </section>
+
+        {/* Audit Trail */}
+        {auditLog.length > 0 && (
+          <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
+              <h2 className="font-semibold text-gray-900">Audit Trail</h2>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {auditLog.map((log) => {
+                const actionLabels: Record<string, string> = {
+                  CREATED: 'Created',
+                  UPDATED: 'Updated',
+                  SUBMITTED: 'Submitted for review',
+                  APPROVED: 'Approved',
+                  REJECTED: 'Rejected',
+                  RESUBMITTED: 'Resubmitted',
+                  INFO_REQUESTED: 'Additional info requested',
+                  DELETED: 'Deleted',
+                };
+                const actionColors: Record<string, string> = {
+                  CREATED: 'bg-gray-100 text-gray-700',
+                  UPDATED: 'bg-gray-100 text-gray-700',
+                  SUBMITTED: 'bg-blue-100 text-blue-700',
+                  APPROVED: 'bg-green-100 text-green-700',
+                  REJECTED: 'bg-red-100 text-red-700',
+                  RESUBMITTED: 'bg-blue-100 text-blue-700',
+                  INFO_REQUESTED: 'bg-purple-100 text-purple-700',
+                  DELETED: 'bg-red-100 text-red-700',
+                };
+                return (
+                  <div key={log.id} className="px-4 py-3 flex items-start gap-3">
+                    <div className="mt-0.5">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${actionColors[log.action] || 'bg-gray-100 text-gray-700'}`}>
+                        {actionLabels[log.action] || log.action}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2 text-sm">
+                        <span className="font-medium text-gray-900">{log.userName}</span>
+                        {log.fromStatus && log.toStatus && (
+                          <span className="text-gray-400">
+                            {log.fromStatus} → {log.toStatus}
+                          </span>
+                        )}
+                      </div>
+                      {log.note && (
+                        <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{log.note}</p>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400 whitespace-nowrap">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );
