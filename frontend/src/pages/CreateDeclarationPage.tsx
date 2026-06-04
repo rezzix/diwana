@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getPrefillData, createDeclaration, type TariffRateDto, type LineItemRequest } from '@/api/declarations';
 import { getOrigins, type OriginDto } from '@/api/origins';
+import { resolveTariffRate } from '@/api/tariffEstimate';
 
 interface LineForm {
   hsCode: string;
@@ -105,10 +106,15 @@ export default function CreateDeclarationPage() {
     }
   };
 
-  const totals = lines.reduce((acc, li) => ({
-    value: acc.value + li.totalValue,
-    count: acc.count + 1,
-  }), { value: 0, count: 0 });
+  const totals = lines.reduce((acc, li) => {
+    const est = resolveTariffRate(li.hsCode, li.countryOfOrigin, li.totalValue, tariffRates);
+    return {
+      value: acc.value + li.totalValue,
+      duty: acc.duty + est.dutyAmount,
+      vat: acc.vat + est.vatAmount,
+      count: acc.count + 1,
+    };
+  }, { value: 0, duty: 0, vat: 0, count: 0 });
 
   if (loading) {
     return <div className="min-h-screen bg-surface flex items-center justify-center"><div className="text-gray-400">Loading...</div></div>;
@@ -229,12 +235,13 @@ export default function CreateDeclarationPage() {
             </button>
           </section>
 
-          {/* Lines table */}
+          {/* Lines table with estimates */}
           {lines.length > 0 && (
             <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               <div className="p-3 border-b border-gray-200 bg-gray-50 text-sm font-semibold text-gray-900">
                 Added Goods Lines ({lines.length})
               </div>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead><tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left px-3 py-2 font-medium text-gray-700">HS Code</th>
@@ -242,32 +249,61 @@ export default function CreateDeclarationPage() {
                   <th className="text-right px-3 py-2 font-medium text-gray-700">Qty</th>
                   <th className="text-right px-3 py-2 font-medium text-gray-700">Unit Price</th>
                   <th className="text-right px-3 py-2 font-medium text-gray-700">Total</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-700">Est. Duty</th>
+                  <th className="text-right px-3 py-2 font-medium text-gray-700">Est. VAT</th>
                   <th className="text-center px-3 py-2 font-medium text-gray-700">Curr</th>
                   <th className="w-10"></th>
                 </tr></thead>
                 <tbody>
-                  {lines.map((li, i) => (
-                    <tr key={i} className="border-b border-gray-100">
-                      <td className="px-3 py-2 font-mono text-xs">{li.hsCode}</td>
-                      <td className="px-3 py-2">{li.description}</td>
-                      <td className="px-3 py-2 text-right">{li.quantity}</td>
-                      <td className="px-3 py-2 text-right">{li.unitPrice.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-right font-medium">{li.totalValue.toFixed(2)}</td>
-                      <td className="px-3 py-2 text-center text-xs text-gray-500">{li.currency}</td>
-                      <td className="px-3 py-2 text-center">
-                        <button type="button" onClick={() => handleRemoveLine(i)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
-                      </td>
-                    </tr>
-                  ))}
+                  {lines.map((li, i) => {
+                    const est = resolveTariffRate(li.hsCode, li.countryOfOrigin, li.totalValue, tariffRates);
+                    return (
+                      <tr key={i} className="border-b border-gray-100">
+                        <td className="px-3 py-2 font-mono text-xs">{li.hsCode}</td>
+                        <td className="px-3 py-2">{li.description}</td>
+                        <td className="px-3 py-2 text-right">{li.quantity}</td>
+                        <td className="px-3 py-2 text-right">{li.unitPrice.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right font-medium">{li.totalValue.toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right text-amber-700">{est.dutyAmount.toFixed(2)} <span className="text-xs text-gray-400">({est.dutyRate}%)</span></td>
+                        <td className="px-3 py-2 text-right text-blue-700">{est.vatAmount.toFixed(2)} <span className="text-xs text-gray-400">({est.vatRate}%)</span></td>
+                        <td className="px-3 py-2 text-center text-xs text-gray-500">{li.currency}</td>
+                        <td className="px-3 py-2 text-center">
+                          <button type="button" onClick={() => handleRemoveLine(i)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50 font-semibold">
                     <td colSpan={4} className="px-3 py-2 text-right text-gray-700">Total ({lines.length} lines):</td>
                     <td className="px-3 py-2 text-right text-gray-900">{totals.value.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right text-amber-700">{totals.duty.toFixed(2)}</td>
+                    <td className="px-3 py-2 text-right text-blue-700">{totals.vat.toFixed(2)}</td>
                     <td colSpan={2}></td>
                   </tr>
                 </tfoot>
               </table>
+              </div>
+            </section>
+          )}
+
+          {/* Estimated duties summary */}
+          {lines.length > 0 && (
+            <section className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+              <h2 className="font-semibold text-amber-900 mb-3">Estimated Duties &amp; Taxes</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div><span className="text-amber-700 block">Total Goods Value</span><span className="font-medium text-gray-900">{totals.value.toFixed(2)}</span></div>
+                <div><span className="text-amber-700 block">Estimated Duty</span><span className="font-medium text-amber-900">{totals.duty.toFixed(2)}</span></div>
+                <div><span className="text-amber-700 block">Estimated VAT</span><span className="font-medium text-blue-900">{totals.vat.toFixed(2)}</span></div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-amber-200 text-sm">
+                <div className="flex justify-between">
+                  <span className="font-medium text-amber-900">Estimated Total (Value + Duty + VAT)</span>
+                  <span className="font-bold text-gray-900">{(totals.value + totals.duty + totals.vat).toFixed(2)}</span>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-amber-600">These are indicative estimates based on current tariff rates. Final amounts are determined upon customs review.</p>
             </section>
           )}
 
