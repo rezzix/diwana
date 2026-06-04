@@ -22,6 +22,7 @@ public record DeclarationDto(
         BigDecimal totalValue,
         String notes,
         String rejectionReason,
+        String infoRequestNote,
         List<LineItemDto> lineItems,
         String createdAt
 ) {
@@ -52,6 +53,10 @@ public record DeclarationDto(
 
     public record RejectRequest(
             @NotBlank String reason
+    ) {}
+
+    public record InfoRequestRequest(
+            @NotBlank String note
     ) {}
 
     public record LineItemDto(

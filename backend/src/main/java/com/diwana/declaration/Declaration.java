@@ -15,7 +15,7 @@ import java.util.List;
 @Table(name = "declaration")
 public class Declaration {
 
-    public enum Status { DRAFT, SUBMITTED, UNDER_REVIEW, APPROVED, REJECTED }
+    public enum Status { DRAFT, SUBMITTED, UNDER_REVIEW, INFO_REQUESTED, APPROVED, REJECTED }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,6 +54,9 @@ public class Declaration {
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 
+    @Column(name = "info_request_note", columnDefinition = "TEXT")
+    private String infoRequestNote;
+
     @OneToMany(mappedBy = "declaration", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<DeclarationLineItem> lineItems = new ArrayList<>();
 
@@ -89,6 +92,8 @@ public class Declaration {
     public void setNotes(String notes) { this.notes = notes; }
     public String getRejectionReason() { return rejectionReason; }
     public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+    public String getInfoRequestNote() { return infoRequestNote; }
+    public void setInfoRequestNote(String infoRequestNote) { this.infoRequestNote = infoRequestNote; }
     public List<DeclarationLineItem> getLineItems() { return lineItems; }
     public void setLineItems(List<DeclarationLineItem> lineItems) { this.lineItems = lineItems; }
     public Instant getCreatedAt() { return createdAt; }

@@ -30,6 +30,7 @@ export default function ControlDeskPage() {
 
   const submitted = declarations.filter((d) => d.status === 'SUBMITTED');
   const underReview = declarations.filter((d) => d.status === 'UNDER_REVIEW');
+  const infoRequested = declarations.filter((d) => d.status === 'INFO_REQUESTED');
 
   return (
     <div className="min-h-screen bg-surface">
@@ -51,7 +52,7 @@ export default function ControlDeskPage() {
         {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
 
         {/* Summary cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="text-2xl font-bold text-blue-700">{submitted.length}</div>
             <div className="text-sm text-blue-600">Submitted — awaiting review</div>
@@ -59,6 +60,10 @@ export default function ControlDeskPage() {
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="text-2xl font-bold text-amber-700">{underReview.length}</div>
             <div className="text-sm text-amber-600">Under Review</div>
+          </div>
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <div className="text-2xl font-bold text-purple-700">{infoRequested.length}</div>
+            <div className="text-sm text-purple-600">Info Requested</div>
           </div>
         </div>
 
@@ -91,7 +96,9 @@ export default function ControlDeskPage() {
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-900">{decl.declarationNumber}</td>
                     <td className="px-4 py-2.5">
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                        decl.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                        decl.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' :
+                        decl.status === 'INFO_REQUESTED' ? 'bg-purple-100 text-purple-700' :
+                        'bg-amber-100 text-amber-700'
                       }`}>
                         {decl.status}
                       </span>

@@ -68,6 +68,17 @@ public class DeclarationController {
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(declarationService.getById(id))));
     }
 
+    @GetMapping("/{id}/audit-log")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DECLARANT', 'CONTROLLER')")
+    public ResponseEntity<ApiResponse<List<DeclarationAuditLogDto>>> getAuditLog(@PathVariable Long id) {
+        List<DeclarationAuditLog> logs = declarationService.getAuditLog(id);
+        List<DeclarationAuditLogDto> dtos = logs.stream().map(l -> new DeclarationAuditLogDto(
+                l.getId(), l.getAction().name(), l.getFromStatus(), l.getToStatus(),
+                l.getNote(), l.getUserName(), l.getCreatedAt()
+        )).toList();
+        return ResponseEntity.ok(ApiResponse.of(dtos));
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('DECLARANT')")
     public ResponseEntity<ApiResponse<DeclarationDto>> update(
@@ -112,6 +123,15 @@ public class DeclarationController {
             @PathVariable Long id) {
         Declaration approved = declarationService.approve(id);
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(approved)));
+    }
+
+    @PostMapping("/{id}/request-info")
+    @PreAuthorize("hasRole('CONTROLLER')")
+    public ResponseEntity<ApiResponse<DeclarationDto>> requestInfo(
+            @PathVariable Long id,
+            @Valid @RequestBody DeclarationDto.InfoRequestRequest request) {
+        Declaration flagged = declarationService.requestInfo(id, request.note());
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(flagged)));
     }
 
     @PostMapping("/{id}/resubmit")

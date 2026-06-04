@@ -27,17 +27,19 @@ public class DeclarationService {
     private final UserService userService;
     private final TariffRateRepository tariffRateRepository;
     private final OriginRepository originRepository;
+    private final DeclarationAuditLogRepository auditLogRepository;
 
     private final AtomicLong numberCounter = new AtomicLong(System.currentTimeMillis());
 
     public DeclarationService(DeclarationRepository declarationRepository, CompanyService companyService,
                                UserService userService, TariffRateRepository tariffRateRepository,
-                               OriginRepository originRepository) {
+                               OriginRepository originRepository, DeclarationAuditLogRepository auditLogRepository) {
         this.declarationRepository = declarationRepository;
         this.companyService = companyService;
         this.userService = userService;
         this.tariffRateRepository = tariffRateRepository;
         this.originRepository = originRepository;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Transactional
@@ -81,7 +83,22 @@ public class DeclarationService {
         declaration.setTotalVat(totalVat);
         declaration.setTotalValue(totalValue);
 
-        return declarationRepository.save(declaration);
+        Declaration saved = declarationRepository.save(declaration);
+        logAction(saved, DeclarationAuditLog.Action.CREATED, null, saved.getStatus().name(), null, declarant);
+        return saved;
+    }
+
+    private void logAction(Declaration declaration, DeclarationAuditLog.Action action,
+                          String fromStatus, String toStatus, String note, User user) {
+        DeclarationAuditLog log = new DeclarationAuditLog();
+        log.setDeclaration(declaration);
+        log.setAction(action);
+        log.setFromStatus(fromStatus);
+        log.setToStatus(toStatus);
+        log.setNote(note);
+        log.setUser(user);
+        log.setUserName(user != null ? user.getFirstName() + " " + user.getLastName() : "System");
+        auditLogRepository.save(log);
     }
 
     @Transactional(readOnly = true)
@@ -98,15 +115,16 @@ public class DeclarationService {
     @Transactional(readOnly = true)
     public List<Declaration> listPendingReview() {
         return declarationRepository.findByStatusInOrderByCreatedAtAsc(
-                List.of(Declaration.Status.SUBMITTED, Declaration.Status.UNDER_REVIEW));
+                List.of(Declaration.Status.SUBMITTED, Declaration.Status.UNDER_REVIEW, Declaration.Status.INFO_REQUESTED));
     }
 
     @Transactional
     public Declaration update(Long id, DeclarationDto.UpdateRequest request, Long userId) {
         Declaration declaration = getById(id);
 
-        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED) {
-            throw new BadRequestException("Only draft or rejected declarations can be edited");
+        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED
+                && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only draft, rejected, or info-requested declarations can be edited");
         }
 
         User declarant = userService.getById(userId);
@@ -139,10 +157,11 @@ public class DeclarationService {
         declaration.setTotalVat(totalVat);
         declaration.setTotalValue(totalValue);
 
-        // If editing a rejected declaration, reset to draft and clear rejection reason
-        if (declaration.getStatus() == Declaration.Status.REJECTED) {
+        // If editing a rejected or info-requested declaration, reset to draft and clear notes
+        if (declaration.getStatus() == Declaration.Status.REJECTED || declaration.getStatus() == Declaration.Status.INFO_REQUESTED) {
             declaration.setStatus(Declaration.Status.DRAFT);
             declaration.setRejectionReason(null);
+            declaration.setInfoRequestNote(null);
         }
 
         return declarationRepository.save(declaration);
@@ -223,51 +242,88 @@ public class DeclarationService {
     @Transactional
     public Declaration reject(Long id, String reason) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.SUBMITTED && declaration.getStatus() != Declaration.Status.UNDER_REVIEW) {
-            throw new BadRequestException("Only submitted or under-review declarations can be rejected");
+        if (declaration.getStatus() != Declaration.Status.SUBMITTED
+                && declaration.getStatus() != Declaration.Status.UNDER_REVIEW
+                && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only submitted, under-review, or info-requested declarations can be rejected");
         }
+        String fromStatus = declaration.getStatus().name();
         declaration.setStatus(Declaration.Status.REJECTED);
         declaration.setRejectionReason(reason);
-        return declarationRepository.save(declaration);
+        declaration.setInfoRequestNote(null);
+        Declaration saved = declarationRepository.save(declaration);
+        logAction(saved, DeclarationAuditLog.Action.REJECTED, fromStatus, saved.getStatus().name(), reason, null);
+        return saved;
     }
 
     @Transactional
     public Declaration approve(Long id) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.SUBMITTED && declaration.getStatus() != Declaration.Status.UNDER_REVIEW) {
-            throw new BadRequestException("Only submitted or under-review declarations can be approved");
+        if (declaration.getStatus() != Declaration.Status.SUBMITTED
+                && declaration.getStatus() != Declaration.Status.UNDER_REVIEW
+                && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only submitted, under-review, or info-requested declarations can be approved");
         }
+        String fromStatus = declaration.getStatus().name();
         declaration.setStatus(Declaration.Status.APPROVED);
         declaration.setRejectionReason(null);
-        return declarationRepository.save(declaration);
+        declaration.setInfoRequestNote(null);
+        Declaration saved = declarationRepository.save(declaration);
+        logAction(saved, DeclarationAuditLog.Action.APPROVED, fromStatus, saved.getStatus().name(), null, null);
+        return saved;
+    }
+
+    @Transactional
+    public Declaration requestInfo(Long id, String note) {
+        Declaration declaration = getById(id);
+        if (declaration.getStatus() != Declaration.Status.SUBMITTED && declaration.getStatus() != Declaration.Status.UNDER_REVIEW) {
+            throw new BadRequestException("Only submitted or under-review declarations can be flagged for additional info");
+        }
+        String fromStatus = declaration.getStatus().name();
+        declaration.setStatus(Declaration.Status.INFO_REQUESTED);
+        declaration.setInfoRequestNote(note);
+        Declaration saved = declarationRepository.save(declaration);
+        logAction(saved, DeclarationAuditLog.Action.INFO_REQUESTED, fromStatus, saved.getStatus().name(), note, null);
+        return saved;
     }
 
     @Transactional
     public Declaration resubmit(Long id, Long userId) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.REJECTED) {
-            throw new BadRequestException("Only rejected declarations can be resubmitted");
+        if (declaration.getStatus() != Declaration.Status.REJECTED && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only rejected or info-requested declarations can be resubmitted");
         }
         User declarant = userService.getById(userId);
         if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
             throw new BadRequestException("You can only resubmit your own declarations");
         }
+        String fromStatus = declaration.getStatus().name();
         declaration.setStatus(Declaration.Status.DRAFT);
         declaration.setRejectionReason(null);
-        return declarationRepository.save(declaration);
+        declaration.setInfoRequestNote(null);
+        Declaration saved = declarationRepository.save(declaration);
+        logAction(saved, DeclarationAuditLog.Action.RESUBMITTED, fromStatus, saved.getStatus().name(), null, declarant);
+        return saved;
     }
 
     @Transactional
     public void delete(Long id, Long userId) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED) {
-            throw new BadRequestException("Only draft or rejected declarations can be deleted");
+        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED
+                && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
+            throw new BadRequestException("Only draft, rejected, or info-requested declarations can be deleted");
         }
         User declarant = userService.getById(userId);
         if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
             throw new BadRequestException("You can only delete your own declarations");
         }
+        logAction(declaration, DeclarationAuditLog.Action.DELETED, declaration.getStatus().name(), null, null, declarant);
         declarationRepository.delete(declaration);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeclarationAuditLog> getAuditLog(Long declarationId) {
+        return auditLogRepository.findByDeclarationIdOrderByCreatedAtAsc(declarationId);
     }
 
     @Transactional
@@ -283,8 +339,11 @@ public class DeclarationService {
         if (declaration.getLineItems().isEmpty()) {
             throw new BadRequestException("Cannot submit a declaration without line items");
         }
+        String fromStatus = declaration.getStatus().name();
         declaration.setStatus(Declaration.Status.SUBMITTED);
-        return declarationRepository.save(declaration);
+        Declaration saved = declarationRepository.save(declaration);
+        logAction(saved, DeclarationAuditLog.Action.SUBMITTED, fromStatus, saved.getStatus().name(), null, declarant);
+        return saved;
     }
 
     private record TariffRateResolver(BigDecimal dutyRate, BigDecimal vatRate) {}

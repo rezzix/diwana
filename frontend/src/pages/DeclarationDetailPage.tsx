@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, type DeclarationDto } from '@/api/declarations';
+import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, getAuditLog, type DeclarationDto, type AuditLogDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -47,6 +47,7 @@ export default function DeclarationDetailPage() {
   const user = useAuthStore((s) => s.user);
   const [decl, setDecl] = useState<DeclarationDto | null>(null);
   const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditLogDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [uploadType, setUploadType] = useState('COMMERCIAL_INVOICE');
@@ -58,6 +59,9 @@ export default function DeclarationDetailPage() {
   const [approving, setApproving] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [requestingInfo, setRequestingInfo] = useState(false);
+  const [infoNote, setInfoNote] = useState('');
+  const [showInfoDialog, setShowInfoDialog] = useState(false);
 
   const isOwner = user?.role === 'DECLARANT';
   const isController = user?.role === 'CONTROLLER';
@@ -67,13 +71,26 @@ export default function DeclarationDetailPage() {
     try {
       const d = await getDeclaration(Number(id));
       setDecl(d);
-      const atts = await getAttachments(Number(id));
+      const [atts, logs] = await Promise.all([
+        getAttachments(Number(id)),
+        getAuditLog(Number(id)),
+      ]);
       setAttachments(atts);
+      setAuditLog(logs);
     } catch {
       setError('Failed to load declaration');
     } finally {
       setLoading(false);
     }
+  };
+
+  const refreshDecl = async () => {
+    if (!id) return;
+    try {
+      const [d, logs] = await Promise.all([getDeclaration(Number(id)), getAuditLog(Number(id))]);
+      setDecl(d);
+      setAuditLog(logs);
+    } catch { /* ignore */ }
   };
 
   useEffect(() => { fetchData(); }, [id]);
@@ -191,6 +208,7 @@ export default function DeclarationDetailPage() {
     try {
       const updated = await submitDeclaration(Number(id));
       setDecl(updated);
+      getAuditLog(Number(id)).then(setAuditLog).catch(() => {});
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to submit declaration');
     } finally {
@@ -206,6 +224,7 @@ export default function DeclarationDetailPage() {
     try {
       const updated = await resubmitDeclaration(Number(id));
       setDecl(updated);
+      getAuditLog(Number(id)).then(setAuditLog).catch(() => {});
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to resubmit declaration');
     } finally {
@@ -220,6 +239,7 @@ export default function DeclarationDetailPage() {
     try {
       const updated = await rejectDeclaration(Number(id), rejectReason.trim());
       setDecl(updated);
+      getAuditLog(Number(id)).then(setAuditLog).catch(() => {});
       setRejectReason('');
       setShowRejectDialog(false);
     } catch (err: unknown) {
@@ -237,10 +257,27 @@ export default function DeclarationDetailPage() {
     try {
       const updated = await approveDeclaration(Number(id));
       setDecl(updated);
+      getAuditLog(Number(id)).then(setAuditLog).catch(() => {});
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to approve declaration');
     } finally {
       setApproving(false);
+    }
+  };
+
+  const handleRequestInfo = async () => {
+    if (!id || !decl || !infoNote.trim()) return;
+    setRequestingInfo(true);
+    setError('');
+    try {
+      const updated = await requestInfoDeclaration(Number(id), infoNote.trim());
+      setDecl(updated);
+      setInfoNote('');
+      setShowInfoDialog(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to request additional info');
+    } finally {
+      setRequestingInfo(false);
     }
   };
 
@@ -285,6 +322,7 @@ export default function DeclarationDetailPage() {
               decl.status === 'DRAFT' ? 'bg-gray-100 text-gray-600' :
               decl.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' :
               decl.status === 'UNDER_REVIEW' ? 'bg-amber-100 text-amber-700' :
+              decl.status === 'INFO_REQUESTED' ? 'bg-purple-100 text-purple-700' :
               decl.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
               'bg-red-100 text-red-700'
             }`}>{decl.status}</span>
@@ -306,7 +344,7 @@ export default function DeclarationDetailPage() {
                 </button>
               </>
             )}
-            {isOwner && decl.status === 'REJECTED' && (
+            {isOwner && (decl.status === 'REJECTED' || decl.status === 'INFO_REQUESTED') && (
               <>
                 <button onClick={handleResubmit} disabled={resubmitting}
                   className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
@@ -319,6 +357,22 @@ export default function DeclarationDetailPage() {
               </>
             )}
             {isController && (decl.status === 'SUBMITTED' || decl.status === 'UNDER_REVIEW') && (
+              <>
+                <button onClick={handleApprove} disabled={approving}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
+                  {approving ? 'Approving...' : 'Approve'}
+                </button>
+                <button onClick={() => setShowInfoDialog(true)}
+                  className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition-colors">
+                  Request Info
+                </button>
+                <button onClick={() => setShowRejectDialog(true)}
+                  className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors">
+                  Reject
+                </button>
+              </>
+            )}
+            {isController && decl.status === 'INFO_REQUESTED' && (
               <>
                 <button onClick={handleApprove} disabled={approving}
                   className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
@@ -346,6 +400,15 @@ export default function DeclarationDetailPage() {
           </section>
         )}
 
+        {/* Info request note */}
+        {decl.status === 'INFO_REQUESTED' && decl.infoRequestNote && (
+          <section className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+            <h2 className="font-semibold text-purple-900 mb-2">Additional Information Requested</h2>
+            <p className="text-sm text-purple-700 whitespace-pre-wrap">{decl.infoRequestNote}</p>
+            <p className="mt-3 text-xs text-purple-500">The customs controller has requested additional information. You can edit the declaration to provide it, then resubmit.</p>
+          </section>
+        )}
+
         {/* Reject dialog */}
         {showRejectDialog && (
           <section className="bg-red-50 border border-red-200 rounded-lg p-6">
@@ -364,6 +427,31 @@ export default function DeclarationDetailPage() {
                 {rejecting ? 'Rejecting...' : 'Confirm Reject'}
               </button>
               <button onClick={() => { setShowRejectDialog(false); setRejectReason(''); }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Request info dialog */}
+        {showInfoDialog && (
+          <section className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+            <h2 className="font-semibold text-amber-900 mb-2">Request Additional Information</h2>
+            <p className="text-sm text-amber-700 mb-3">Describe what additional information is needed from the declarant.</p>
+            <textarea
+              value={infoNote}
+              onChange={(e) => setInfoNote(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm mb-3"
+              placeholder="e.g. Please provide the commercial invoice for goods line 2..."
+            />
+            <div className="flex gap-2">
+              <button onClick={handleRequestInfo} disabled={requestingInfo || !infoNote.trim()}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 disabled:opacity-50 transition-colors">
+                {requestingInfo ? 'Requesting...' : 'Confirm Request'}
+              </button>
+              <button onClick={() => { setShowInfoDialog(false); setInfoNote(''); }}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
@@ -426,7 +514,7 @@ export default function DeclarationDetailPage() {
           </div>
 
           {/* Upload form */}
-          {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
+          {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED' || decl.status === 'INFO_REQUESTED') && (
             <form onSubmit={handleUpload} className="p-4 border-b border-gray-200 bg-gray-50/50">
               <div className="flex items-end gap-3">
                 <div>
@@ -482,13 +570,13 @@ export default function DeclarationDetailPage() {
                         className="text-xs px-2 py-1 bg-gray-50 text-primary-600 rounded hover:bg-gray-100 transition-colors">
                         Download
                       </a>
-                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
+                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED' || decl.status === 'INFO_REQUESTED') && (
                         <button onClick={() => triggerReplaceInput(att.id)}
                           className="text-xs px-2 py-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-100 transition-colors">
                           Replace
                         </button>
                       )}
-                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
+                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED' || decl.status === 'INFO_REQUESTED') && (
                         <button onClick={() => handleDeleteAtt(att.id)}
                           className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
                           Delete
@@ -501,6 +589,64 @@ export default function DeclarationDetailPage() {
             </table>
           )}
         </section>
+
+        {/* Audit Trail */}
+        {auditLog.length > 0 && (
+          <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
+              <h2 className="font-semibold text-gray-900">Audit Trail</h2>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {auditLog.map((log) => {
+                const actionLabels: Record<string, string> = {
+                  CREATED: 'Created',
+                  UPDATED: 'Updated',
+                  SUBMITTED: 'Submitted for review',
+                  APPROVED: 'Approved',
+                  REJECTED: 'Rejected',
+                  RESUBMITTED: 'Resubmitted',
+                  INFO_REQUESTED: 'Additional info requested',
+                  DELETED: 'Deleted',
+                };
+                const actionColors: Record<string, string> = {
+                  CREATED: 'bg-gray-100 text-gray-700',
+                  UPDATED: 'bg-gray-100 text-gray-700',
+                  SUBMITTED: 'bg-blue-100 text-blue-700',
+                  APPROVED: 'bg-green-100 text-green-700',
+                  REJECTED: 'bg-red-100 text-red-700',
+                  RESUBMITTED: 'bg-blue-100 text-blue-700',
+                  INFO_REQUESTED: 'bg-purple-100 text-purple-700',
+                  DELETED: 'bg-red-100 text-red-700',
+                };
+                return (
+                  <div key={log.id} className="px-4 py-3 flex items-start gap-3">
+                    <div className="mt-0.5">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${actionColors[log.action] || 'bg-gray-100 text-gray-700'}`}>
+                        {actionLabels[log.action] || log.action}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2 text-sm">
+                        <span className="font-medium text-gray-900">{log.userName}</span>
+                        {log.fromStatus && log.toStatus && (
+                          <span className="text-gray-400">
+                            {log.fromStatus} → {log.toStatus}
+                          </span>
+                        )}
+                      </div>
+                      {log.note && (
+                        <p className="mt-1 text-sm text-gray-600 whitespace-pre-wrap">{log.note}</p>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-400 whitespace-nowrap">
+                      {new Date(log.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );
