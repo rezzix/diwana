@@ -51,12 +51,18 @@ export default function CreateDeclarationPage() {
     return (qty * price).toFixed(2);
   };
 
+  const HS_CODE_PATTERN = /^\d{4}(\.\d{2,6})?$/;
+
   const handleAddLine = () => {
     const qty = parseFloat(lineForm.quantity);
     const price = parseFloat(lineForm.unitPrice);
     const total = parseFloat(lineForm.totalValue || calcTotal(lineForm.quantity, lineForm.unitPrice));
     if (!lineForm.hsCode || !lineForm.description || !qty || !price) {
       setError('Fill in HS code, description, quantity, and unit price before adding');
+      return;
+    }
+    if (!HS_CODE_PATTERN.test(lineForm.hsCode)) {
+      setError('HS code must be in format XXXX or XXXX.XX (e.g. 8471.30)');
       return;
     }
     setLines([...lines, {
@@ -166,7 +172,7 @@ export default function CreateDeclarationPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">HS Code *</label>
                 <input type="text" value={lineForm.hsCode} onChange={(e) => setLineForm({ ...lineForm, hsCode: e.target.value })}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g. 8471.30" />
               </div>
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Description *</label>
