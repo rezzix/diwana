@@ -21,6 +21,7 @@ public record DeclarationDto(
         BigDecimal totalVat,
         BigDecimal totalValue,
         String notes,
+        String rejectionReason,
         List<LineItemDto> lineItems,
         String createdAt
 ) {
@@ -47,6 +48,10 @@ public record DeclarationDto(
             @NotNull @Size(min = 1) @Valid List<LineItemRequest> lineItems,
             String customsOffice,
             String notes
+    ) {}
+
+    public record RejectRequest(
+            @NotBlank String reason
     ) {}
 
     public record LineItemDto(

@@ -58,6 +58,7 @@ export interface DeclarationDto {
   totalVat: number | null;
   totalValue: number | null;
   notes: string | null;
+  rejectionReason: string | null;
   lineItems: LineItemDto[];
   createdAt: string;
 }
@@ -109,4 +110,16 @@ export async function deleteDeclaration(id: number): Promise<void> {
 
 export async function submitDeclaration(id: number): Promise<DeclarationDto> {
   return apiPost<DeclarationDto>(`/declarations/${id}/submit`);
+}
+
+export async function rejectDeclaration(id: number, reason: string): Promise<DeclarationDto> {
+  return apiPost<DeclarationDto>(`/declarations/${id}/reject`, { reason });
+}
+
+export async function approveDeclaration(id: number): Promise<DeclarationDto> {
+  return apiPost<DeclarationDto>(`/declarations/${id}/approve`);
+}
+
+export async function resubmitDeclaration(id: number): Promise<DeclarationDto> {
+  return apiPost<DeclarationDto>(`/declarations/${id}/resubmit`);
 }

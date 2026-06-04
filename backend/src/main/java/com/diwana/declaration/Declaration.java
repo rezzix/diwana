@@ -51,6 +51,9 @@ public class Declaration {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
     @OneToMany(mappedBy = "declaration", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<DeclarationLineItem> lineItems = new ArrayList<>();
 
@@ -84,6 +87,8 @@ public class Declaration {
     public void setTotalValue(BigDecimal totalValue) { this.totalValue = totalValue; }
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+    public String getRejectionReason() { return rejectionReason; }
+    public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
     public List<DeclarationLineItem> getLineItems() { return lineItems; }
     public void setLineItems(List<DeclarationLineItem> lineItems) { this.lineItems = lineItems; }
     public Instant getCreatedAt() { return createdAt; }
