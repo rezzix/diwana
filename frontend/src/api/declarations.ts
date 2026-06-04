@@ -132,3 +132,17 @@ export async function resubmitDeclaration(id: number): Promise<DeclarationDto> {
 export async function requestInfoDeclaration(id: number, note: string): Promise<DeclarationDto> {
   return apiPost<DeclarationDto>(`/declarations/${id}/request-info`, { note });
 }
+
+export interface AuditLogDto {
+  id: number;
+  action: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  note: string | null;
+  userName: string;
+  createdAt: string;
+}
+
+export async function getAuditLog(declarationId: number): Promise<AuditLogDto[]> {
+  return apiGet<AuditLogDto[]>(`/declarations/${declarationId}/audit-log`);
+}
