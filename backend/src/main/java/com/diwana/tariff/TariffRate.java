@@ -1,5 +1,6 @@
 package com.diwana.tariff;
 
+import com.diwana.origin.Origin;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -8,14 +9,20 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "tariff_rate")
+@Table(name = "tariff_rate", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_tariff_rate_origin_hs_code", columnNames = {"origin_id", "hs_code"})
+})
 public class TariffRate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "hs_code", nullable = false, unique = true, length = 12)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "origin_id")
+    private Origin origin;
+
+    @Column(name = "hs_code", length = 12)
     private String hsCode;
 
     @Column(nullable = false)
@@ -45,6 +52,8 @@ public class TariffRate {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public Origin getOrigin() { return origin; }
+    public void setOrigin(Origin origin) { this.origin = origin; }
     public String getHsCode() { return hsCode; }
     public void setHsCode(String hsCode) { this.hsCode = hsCode; }
     public String getDescription() { return description; }

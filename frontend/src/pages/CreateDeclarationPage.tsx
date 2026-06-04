@@ -138,15 +138,17 @@ export default function CreateDeclarationPage() {
                   <thead className="sticky top-0 bg-gray-50"><tr className="border-b border-gray-200">
                     <th className="text-left px-3 py-1.5 font-medium">HS Code</th>
                     <th className="text-left px-3 py-1.5 font-medium">Description</th>
+                    <th className="text-left px-3 py-1.5 font-medium">Origin</th>
                     <th className="text-right px-3 py-1.5 font-medium">Duty</th>
                     <th className="text-right px-3 py-1.5 font-medium">VAT</th>
                   </tr></thead>
                   <tbody>
                     {tariffRates.map((r) => (
                       <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                          onClick={() => setLineForm({ ...lineForm, hsCode: r.hsCode, description: r.description, unit: r.unit })}>
-                        <td className="px-3 py-1.5 font-mono">{r.hsCode}</td>
+                          onClick={() => { if (r.hsCode) setLineForm({ ...lineForm, hsCode: r.hsCode, description: r.description, unit: r.unit }); }}>
+                        <td className="px-3 py-1.5 font-mono">{r.hsCode || '—'}</td>
                         <td className="px-3 py-1.5">{r.description}</td>
+                        <td className="px-3 py-1.5 text-gray-500">{r.originName || 'All'}</td>
                         <td className="px-3 py-1.5 text-right">{r.dutyRate}%</td>
                         <td className="px-3 py-1.5 text-right">{r.vatRate}%</td>
                       </tr>
