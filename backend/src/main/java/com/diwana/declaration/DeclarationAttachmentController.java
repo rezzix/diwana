@@ -78,4 +78,16 @@ public class DeclarationAttachmentController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + attachment.getFileName() + "\"")
                 .body(resource);
     }
+
+    @GetMapping("/view/{attachmentId}")
+    @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
+    public ResponseEntity<Resource> view(@PathVariable Long attachmentId) {
+        Resource resource = attachmentService.download(attachmentId);
+        DeclarationAttachment attachment = attachmentService.getById(attachmentId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(attachment.getContentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + attachment.getFileName() + "\"")
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache")
+                .body(resource);
+    }
 }
