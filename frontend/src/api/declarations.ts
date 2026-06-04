@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from './client';
+import { apiGet, apiPost, apiPut, apiDelete } from './client';
 
 export interface CompanyPrefill {
   name: string;
@@ -99,4 +99,8 @@ export async function getDeclaration(id: number): Promise<DeclarationDto> {
 
 export async function updateDeclaration(id: number, request: UpdateDeclarationRequest): Promise<DeclarationDto> {
   return apiPut<DeclarationDto>(`/declarations/${id}`, request);
+}
+
+export async function deleteDeclaration(id: number): Promise<void> {
+  await apiDelete(`/declarations/${id}`);
 }

@@ -36,6 +36,14 @@ public class DeclarationController {
         this.authHelper = authHelper;
     }
 
+    @GetMapping
+    @PreAuthorize("hasAnyRole('DECLARANT', 'ADMIN')")
+    public ResponseEntity<ApiResponse<List<DeclarationDto>>> list(@AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        List<Declaration> declarations = declarationService.listByDeclarant(userId);
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDtoList(declarations)));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('DECLARANT')")
     public ResponseEntity<ApiResponse<DeclarationDto>> create(
@@ -62,6 +70,14 @@ public class DeclarationController {
         Long userId = authHelper.getCurrentUserId(currentUser);
         Declaration updated = declarationService.update(id, request, userId);
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(updated)));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('DECLARANT')")
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        declarationService.delete(id, userId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/prefill")
