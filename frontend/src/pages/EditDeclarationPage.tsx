@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getDeclaration, updateDeclaration, type LineItemRequest } from '@/api/declarations';
-
+import { getOrigins, type OriginDto } from "@/api/origins";
 interface LineForm {
   hsCode: string;
   description: string;
@@ -23,6 +23,7 @@ export default function EditDeclarationPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [origins, setOrigins] = useState<OriginDto[]>([]);
   const [error, setError] = useState('');
   const [declarationNumber, setDeclarationNumber] = useState('');
   const [lines, setLines] = useState<LineItemRequest[]>([]);
@@ -33,6 +34,7 @@ export default function EditDeclarationPage() {
   useEffect(() => {
     if (!id) return;
     getDeclaration(Number(id)).then((decl) => {
+      getOrigins().then(setOrigins).catch(() => {});
       setDeclarationNumber(decl.declarationNumber);
       setCustomsOffice(decl.customsOffice || '');
       setNotes(decl.notes || '');
@@ -134,8 +136,11 @@ export default function EditDeclarationPage() {
             <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Origin</label>
-                <input type="text" value={lineForm.countryOfOrigin} onChange={(e) => setLineForm({ ...lineForm, countryOfOrigin: e.target.value })}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+                <select value={lineForm.countryOfOrigin} onChange={(e) => setLineForm({ ...lineForm, countryOfOrigin: e.target.value })}
+                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm">
+                  <option value="">— Select origin —</option>
+                  {origins.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Qty *</label>

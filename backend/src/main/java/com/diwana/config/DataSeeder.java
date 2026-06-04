@@ -2,6 +2,8 @@ package com.diwana.config;
 
 import com.diwana.company.Company;
 import com.diwana.company.CompanyRepository;
+import com.diwana.origin.Origin;
+import com.diwana.origin.OriginRepository;
 import com.diwana.tariff.TariffRate;
 import com.diwana.tariff.TariffRateRepository;
 import com.diwana.user.User;
@@ -26,15 +28,18 @@ public class DataSeeder implements CommandLineRunner {
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
     private final TariffRateRepository tariffRateRepository;
+    private final OriginRepository originRepository;
 
     public DataSeeder(PasswordEncoder passwordEncoder,
                       UserRepository userRepository,
                       CompanyRepository companyRepository,
-                      TariffRateRepository tariffRateRepository) {
+                      TariffRateRepository tariffRateRepository,
+                      OriginRepository originRepository) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
         this.tariffRateRepository = tariffRateRepository;
+        this.originRepository = originRepository;
     }
 
     @Override
@@ -45,6 +50,7 @@ public class DataSeeder implements CommandLineRunner {
 
         seedCompanies();
         seedTariffRates();
+        seedOrigins();
         seedUsers();
     }
 
@@ -110,6 +116,68 @@ public class DataSeeder implements CommandLineRunner {
         rate.setUnit(unit);
         rate.setActive(true);
         return rate;
+    }
+
+    // ---- Origins ----
+
+    private void seedOrigins() {
+        if (originRepository.count() > 0) return;
+
+        List<Origin> origins = List.of(
+            new Origin("AD", "Andorra"), new Origin("AE", "United Arab Emirates"), new Origin("AF", "Afghanistan"),
+            new Origin("AG", "Antigua & Barbuda"), new Origin("AL", "Albania"), new Origin("AM", "Armenia"),
+            new Origin("AO", "Angola"), new Origin("AR", "Argentina"), new Origin("AT", "Austria"),
+            new Origin("AU", "Australia"), new Origin("AZ", "Azerbaijan"), new Origin("BE", "Belgium"),
+            new Origin("BF", "Burkina Faso"), new Origin("BG", "Bulgaria"), new Origin("BH", "Bahrain"),
+            new Origin("BI", "Burundi"), new Origin("BJ", "Benin"), new Origin("BN", "Brunei"),
+            new Origin("BO", "Bolivia"), new Origin("BR", "Brazil"), new Origin("BW", "Botswana"),
+            new Origin("CA", "Canada"), new Origin("CD", "Congo (DRC)"), new Origin("CF", "Central African Rep."),
+            new Origin("CG", "Congo (Rep.)"), new Origin("CH", "Switzerland"), new Origin("CI", "Côte d'Ivoire"),
+            new Origin("CL", "Chile"), new Origin("CM", "Cameroon"), new Origin("CN", "China"),
+            new Origin("CO", "Colombia"), new Origin("CR", "Costa Rica"), new Origin("CU", "Cuba"),
+            new Origin("CY", "Cyprus"), new Origin("CZ", "Czech Republic"), new Origin("DE", "Germany"),
+            new Origin("DJ", "Djibouti"), new Origin("DK", "Denmark"), new Origin("DZ", "Algeria"),
+            new Origin("EC", "Ecuador"), new Origin("EE", "Estonia"), new Origin("EG", "Egypt"),
+            new Origin("ER", "Eritrea"), new Origin("ES", "Spain"), new Origin("ET", "Ethiopia"),
+            new Origin("FI", "Finland"), new Origin("FR", "France"), new Origin("GA", "Gabon"),
+            new Origin("GB", "United Kingdom"), new Origin("GH", "Ghana"), new Origin("GM", "Gambia"),
+            new Origin("GN", "Guinea"), new Origin("GQ", "Equatorial Guinea"), new Origin("GR", "Greece"),
+            new Origin("GT", "Guatemala"), new Origin("HK", "Hong Kong"), new Origin("HN", "Honduras"),
+            new Origin("HR", "Croatia"), new Origin("HT", "Haiti"), new Origin("HU", "Hungary"),
+            new Origin("ID", "Indonesia"), new Origin("IE", "Ireland"), new Origin("IL", "Israel"),
+            new Origin("IN", "India"), new Origin("IQ", "Iraq"), new Origin("IR", "Iran"),
+            new Origin("IS", "Iceland"), new Origin("IT", "Italy"), new Origin("JM", "Jamaica"),
+            new Origin("JO", "Jordan"), new Origin("JP", "Japan"), new Origin("KE", "Kenya"),
+            new Origin("KH", "Cambodia"), new Origin("KM", "Comoros"), new Origin("KR", "South Korea"),
+            new Origin("KW", "Kuwait"), new Origin("KZ", "Kazakhstan"), new Origin("LA", "Laos"),
+            new Origin("LB", "Lebanon"), new Origin("LK", "Sri Lanka"), new Origin("LR", "Liberia"),
+            new Origin("LT", "Lithuania"), new Origin("LU", "Luxembourg"), new Origin("LV", "Latvia"),
+            new Origin("LY", "Libya"), new Origin("MA", "Morocco"), new Origin("MD", "Moldova"),
+            new Origin("MG", "Madagascar"), new Origin("ML", "Mali"), new Origin("MM", "Myanmar"),
+            new Origin("MR", "Mauritania"), new Origin("MT", "Malta"), new Origin("MU", "Mauritius"),
+            new Origin("MW", "Malawi"), new Origin("MX", "Mexico"), new Origin("MY", "Malaysia"),
+            new Origin("MZ", "Mozambique"), new Origin("NA", "Namibia"), new Origin("NE", "Niger"),
+            new Origin("NG", "Nigeria"), new Origin("NI", "Nicaragua"), new Origin("NL", "Netherlands"),
+            new Origin("NO", "Norway"), new Origin("NP", "Nepal"), new Origin("NZ", "New Zealand"),
+            new Origin("OM", "Oman"), new Origin("PA", "Panama"), new Origin("PE", "Peru"),
+            new Origin("PH", "Philippines"), new Origin("PK", "Pakistan"), new Origin("PL", "Poland"),
+            new Origin("PT", "Portugal"), new Origin("PY", "Paraguay"), new Origin("QA", "Qatar"),
+            new Origin("RO", "Romania"), new Origin("RS", "Serbia"), new Origin("RU", "Russia"),
+            new Origin("RW", "Rwanda"), new Origin("SA", "Saudi Arabia"), new Origin("SD", "Sudan"),
+            new Origin("SE", "Sweden"), new Origin("SG", "Singapore"), new Origin("SI", "Slovenia"),
+            new Origin("SK", "Slovakia"), new Origin("SL", "Sierra Leone"), new Origin("SN", "Senegal"),
+            new Origin("SO", "Somalia"), new Origin("SR", "Suriname"), new Origin("SV", "El Salvador"),
+            new Origin("SY", "Syria"), new Origin("SZ", "Eswatini"), new Origin("TD", "Chad"),
+            new Origin("TG", "Togo"), new Origin("TH", "Thailand"), new Origin("TJ", "Tajikistan"),
+            new Origin("TM", "Turkmenistan"), new Origin("TN", "Tunisia"), new Origin("TR", "Turkey"),
+            new Origin("TT", "Trinidad & Tobago"), new Origin("TW", "Taiwan"), new Origin("TZ", "Tanzania"),
+            new Origin("UA", "Ukraine"), new Origin("UG", "Uganda"), new Origin("US", "United States"),
+            new Origin("UY", "Uruguay"), new Origin("UZ", "Uzbekistan"), new Origin("VE", "Venezuela"),
+            new Origin("VN", "Vietnam"), new Origin("YE", "Yemen"), new Origin("ZA", "South Africa"),
+            new Origin("ZM", "Zambia"), new Origin("ZW", "Zimbabwe")
+        );
+
+        originRepository.saveAll(origins);
     }
 
     // ---- Users ----
