@@ -1,16 +1,44 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { getDeclaration, type DeclarationDto } from '@/api/declarations';
-import { deleteDeclaration } from '@/api/declarations';
+import { getDeclaration, deleteDeclaration, type DeclarationDto } from '@/api/declarations';
+import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
 import { useAuthStore } from '@/stores/authStore';
 
-interface AttachmentDto {
-  id: number;
-  docType: string;
-  fileName: string;
-  contentType: string;
-  fileSize: number;
-  createdAt: string;
+function DocumentViewer({ attachment, declarationId, onClose }: {
+  attachment: AttachmentDto;
+  declarationId: number;
+  onClose: () => void;
+}) {
+  const url = getAttachmentViewUrl(declarationId, attachment.id);
+  const isImage = attachment.contentType.startsWith('image/');
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium text-gray-900 truncate">{attachment.fileName}</span>
+            <span className="text-xs text-gray-400">{attachment.contentType}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <a href={getAttachmentDownloadUrl(declarationId, attachment.id)}
+              className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+              Download
+            </a>
+            <button onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto p-2">
+          {isImage ? (
+            <img src={url} alt={attachment.fileName} className="max-w-full max-h-[75vh] mx-auto block" />
+          ) : (
+            <iframe src={url} title={attachment.fileName} className="w-full border-0" style={{ height: '75vh' }} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function DeclarationDetailPage() {
@@ -23,6 +51,7 @@ export default function DeclarationDetailPage() {
   const [error, setError] = useState('');
   const [uploadType, setUploadType] = useState('COMMERCIAL_INVOICE');
   const [uploading, setUploading] = useState(false);
+  const [viewingAttachment, setViewingAttachment] = useState<AttachmentDto | null>(null);
 
   const isOwner = user?.role === 'DECLARANT';
 
@@ -31,9 +60,8 @@ export default function DeclarationDetailPage() {
     try {
       const d = await getDeclaration(Number(id));
       setDecl(d);
-      const res = await fetch(`/api/declarations/${id}/attachments`, { credentials: 'include' });
-      const json = await res.json();
-      setAttachments(json.data || []);
+      const atts = await getAttachments(Number(id));
+      setAttachments(atts);
     } catch {
       setError('Failed to load declaration');
     } finally {
@@ -65,10 +93,8 @@ export default function DeclarationDetailPage() {
         throw new Error(json.data || 'Upload failed');
       }
       fileInput.value = '';
-      // Refresh attachments
-      const attRes = await fetch(`/api/declarations/${id}/attachments`, { credentials: 'include' });
-      const attJson = await attRes.json();
-      setAttachments(attJson.data || []);
+      const atts = await getAttachments(Number(id));
+      setAttachments(atts);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -77,11 +103,10 @@ export default function DeclarationDetailPage() {
   };
 
   const handleDeleteAtt = async (attId: number) => {
+    if (!id) return;
     if (!confirm('Delete this document?')) return;
     try {
-      await fetch(`/api/declarations/${id}/attachments/${attId}`, {
-        method: 'DELETE', credentials: 'include',
-      });
+      await deleteAttachment(Number(id), attId);
       setAttachments(attachments.filter((a) => a.id !== attId));
     } catch {
       setError('Failed to delete attachment');
@@ -122,6 +147,14 @@ export default function DeclarationDetailPage() {
 
   return (
     <div className="min-h-screen bg-surface">
+      {viewingAttachment && id && (
+        <DocumentViewer
+          attachment={viewingAttachment}
+          declarationId={Number(id)}
+          onClose={() => setViewingAttachment(null)}
+        />
+      )}
+
       <header className="bg-white border-b border-gray-200 px-6 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -250,11 +283,20 @@ export default function DeclarationDetailPage() {
                 {attachments.map((att) => (
                   <tr key={att.id} className="border-b border-gray-100">
                     <td className="px-4 py-2 text-gray-700">{docTypeLabels[att.docType] || att.docType}</td>
-                    <td className="px-4 py-2 text-gray-900">{att.fileName}</td>
+                    <td className="px-4 py-2">
+                      <button onClick={() => setViewingAttachment(att)}
+                        className="text-primary-600 hover:underline font-medium">
+                        {att.fileName}
+                      </button>
+                    </td>
                     <td className="px-4 py-2 text-right text-gray-600">{formatSize(att.fileSize)}</td>
                     <td className="px-4 py-2 text-right text-gray-400 text-xs">{new Date(att.createdAt).toLocaleString()}</td>
                     <td className="px-4 py-2 text-right space-x-2">
-                      <a href={`/api/declarations/${id}/attachments/download/${att.id}`}
+                      <button onClick={() => setViewingAttachment(att)}
+                        className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors">
+                        View
+                      </button>
+                      <a href={getAttachmentDownloadUrl(Number(id), att.id)}
                         className="text-xs px-2 py-1 bg-gray-50 text-primary-600 rounded hover:bg-gray-100 transition-colors">
                         Download
                       </a>
