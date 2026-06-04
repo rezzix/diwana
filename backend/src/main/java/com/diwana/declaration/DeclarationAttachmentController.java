@@ -68,6 +68,34 @@ public class DeclarationAttachmentController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{attachmentId}")
+    @PreAuthorize("hasRole('DECLARANT')")
+    public ResponseEntity<ApiResponse<AttachmentDto>> replace(
+            @PathVariable Long declarationId,
+            @PathVariable Long attachmentId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "docType", required = false) String docType,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        DeclarationAttachment existing = attachmentService.getById(attachmentId);
+        DeclarationAttachment.DocType type;
+        if (docType != null && !docType.isBlank()) {
+            try {
+                type = DeclarationAttachment.DocType.valueOf(docType);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(ApiResponse.of(null));
+            }
+        } else {
+            type = existing.getDocType();
+        }
+        DeclarationAttachment attachment = attachmentService.replace(declarationId, attachmentId, file, type, userId);
+        return ResponseEntity.ok(ApiResponse.of(
+                new AttachmentDto(attachment.getId(), attachment.getDocType().name(),
+                        attachment.getFileName(), attachment.getContentType(),
+                        attachment.getFileSize(), attachment.getCreatedAt().toString())
+        ));
+    }
+
     @GetMapping("/download/{attachmentId}")
     @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
     public ResponseEntity<Resource> download(@PathVariable Long attachmentId) {
