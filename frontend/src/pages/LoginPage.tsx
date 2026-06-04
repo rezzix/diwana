@@ -163,6 +163,7 @@ export default function LoginPage() {
                                   <div className="min-w-0 flex-1">
                                     <span className="truncate font-medium block">{u.displayName}</span>
                                     {u.company && <span className="truncate text-[10px] text-gray-400 block">{u.company}</span>}
+                                    {u.customsOffice && <span className="truncate text-[10px] text-green-600 block">{u.customsOffice}</span>}
                                   </div>
                                 </button>
                               ))}

@@ -89,12 +89,13 @@ public class AuthController {
         }
         List<DevUserDto> users = userRepository.findAll().stream()
                 .map(u -> new DevUserDto(u.getUsername(), u.getFirstName() + " " + u.getLastName(), u.getRole().name(),
-                        u.getCompany() != null ? u.getCompany().getName() : null))
+                        u.getCompany() != null ? u.getCompany().getName() : null,
+                        u.getCustomsOffice() != null ? u.getCustomsOffice().getName() : null))
                 .toList();
         return ResponseEntity.ok(ApiResponse.of(users));
     }
 
-    public record DevUserDto(String username, String displayName, String role, String company) {}
+    public record DevUserDto(String username, String displayName, String role, String company, String customsOffice) {}
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<String>> logout(HttpServletRequest httpRequest) {
