@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getPrefillData, createDeclaration, type TariffRateDto, type LineItemRequest } from '@/api/declarations';
 import { getOrigins, type OriginDto } from '@/api/origins';
+import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
 import { resolveTariffRate } from '@/api/tariffEstimate';
 
 interface LineForm {
@@ -25,6 +26,7 @@ export default function CreateDeclarationPage() {
   const [company, setCompany] = useState<{ name: string; ice: string | null } | null>(null);
   const [tariffRates, setTariffRates] = useState<TariffRateDto[]>([]);
   const [origins, setOrigins] = useState<OriginDto[]>([]);
+  const [customsOffices, setCustomsOffices] = useState<CustomsOfficeDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -37,10 +39,12 @@ export default function CreateDeclarationPage() {
     Promise.all([
       getPrefillData(),
       getOrigins(),
-    ]).then(([data, originData]) => {
+      getCustomsOffices(),
+    ]).then(([data, originData, officeData]) => {
       setCompany(data.company ? { name: data.company.name, ice: data.company.ice } : null);
       setTariffRates(data.tariffRates);
       setOrigins(originData);
+      setCustomsOffices(officeData);
     })
       .catch(() => setError('Failed to load prefill data'))
       .finally(() => setLoading(false));
@@ -313,8 +317,11 @@ export default function CreateDeclarationPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office</label>
-                <input type="text" value={customsOffice} onChange={(e) => setCustomsOffice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g. Casablanca Port" />
+                <select value={customsOffice} onChange={(e) => setCustomsOffice(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                  <option value="">— Select customs office —</option>
+                  {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
+                </select>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>

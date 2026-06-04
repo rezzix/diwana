@@ -2,6 +2,8 @@ package com.diwana.config;
 
 import com.diwana.company.Company;
 import com.diwana.company.CompanyRepository;
+import com.diwana.customsoffice.CustomsOffice;
+import com.diwana.customsoffice.CustomsOfficeRepository;
 import com.diwana.origin.Origin;
 import com.diwana.origin.OriginRepository;
 import com.diwana.tariff.TariffRate;
@@ -29,17 +31,20 @@ public class DataSeeder implements CommandLineRunner {
     private final CompanyRepository companyRepository;
     private final TariffRateRepository tariffRateRepository;
     private final OriginRepository originRepository;
+    private final CustomsOfficeRepository customsOfficeRepository;
 
     public DataSeeder(PasswordEncoder passwordEncoder,
                       UserRepository userRepository,
                       CompanyRepository companyRepository,
                       TariffRateRepository tariffRateRepository,
-                      OriginRepository originRepository) {
+                      OriginRepository originRepository,
+                      CustomsOfficeRepository customsOfficeRepository) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
         this.tariffRateRepository = tariffRateRepository;
         this.originRepository = originRepository;
+        this.customsOfficeRepository = customsOfficeRepository;
     }
 
     @Override
@@ -50,6 +55,7 @@ public class DataSeeder implements CommandLineRunner {
 
         seedCompanies();
         seedOrigins();
+        seedCustomsOffices();
         seedTariffRates();
         seedUsers();
     }
@@ -84,6 +90,37 @@ public class DataSeeder implements CommandLineRunner {
         company.setAddress(address);
         company.setActive(true);
         return company;
+    }
+
+    // ---- Customs Offices ----
+
+    private void seedCustomsOffices() {
+        if (customsOfficeRepository.count() > 0) return;
+
+        List<CustomsOffice> offices = List.of(
+            new CustomsOffice("CASA-P", "Port de Casablanca"),
+            new CustomsOffice("CASA-A", "Aéroport de Casablanca - Mohammed V"),
+            new CustomsOffice("TANGER-P", "Port de Tanger Med"),
+            new CustomsOffice("TANGER-V", "Port de Tanger Ville"),
+            new CustomsOffice("AGADIR-P", "Port d'Agadir"),
+            new CustomsOffice("SAFI-P", "Port de Safi"),
+            new CustomsOffice("KENITRA-P", "Port de Kénitra"),
+            new CustomsOffice("RABAT-A", "Aéroport de Rabat - Salé"),
+            new CustomsOffice("NADOR-P", "Port de Nador"),
+            new CustomsOffice("OUJDA-A", "Aéroport d'Oujda - Angads"),
+            new CustomsOffice("FES-A", "Aéroport de Fès - Saïss"),
+            new CustomsOffice("MARRAKECH-A", "Aéroport de Marrakech - Ménara"),
+            new CustomsOffice("ESSAOUIRA-P", "Port d'Essaouira"),
+            new CustomsOffice("ELJADIDA-P", "Port d'El Jadida"),
+            new CustomsOffice("LAAYOUNE-A", "Aéroport de Laâyoune - Hassan I"),
+            new CustomsOffice("DAKHLA-A", "Aéroport de Dakhla"),
+            new CustomsOffice("TETOUAN-A", "Aéroport de Tétouan - Sania R'mel"),
+            new CustomsOffice("ERRACHIDIA-A", "Aéroport d'Errachidia - Moulay Ali Cherif"),
+            new CustomsOffice("OUARZAZATE-A", "Aéroport d'Ouarzazate - Moulay Ali Cherif"),
+            new CustomsOffice("ALHOCEIMA-P", "Port d'Al Hoceima")
+        );
+
+        customsOfficeRepository.saveAll(offices);
     }
 
     // ---- Tariff Rates ----

@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { getDeclaration, updateDeclaration, getPrefillData, type TariffRateDto, type LineItemRequest } from '@/api/declarations';
 import { getOrigins, type OriginDto } from "@/api/origins";
+import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
 import { resolveTariffRate } from '@/api/tariffEstimate';
 
 interface LineForm {
@@ -27,6 +28,7 @@ export default function EditDeclarationPage() {
   const [saving, setSaving] = useState(false);
   const [origins, setOrigins] = useState<OriginDto[]>([]);
   const [tariffRates, setTariffRates] = useState<TariffRateDto[]>([]);
+  const [customsOffices, setCustomsOffices] = useState<CustomsOfficeDto[]>([]);
   const [error, setError] = useState('');
   const [declarationNumber, setDeclarationNumber] = useState('');
   const [lines, setLines] = useState<LineItemRequest[]>([]);
@@ -37,9 +39,10 @@ export default function EditDeclarationPage() {
   useEffect(() => {
     if (!id) return;
     getDeclaration(Number(id)).then((decl) => {
-      Promise.all([getOrigins(), getPrefillData()]).then(([originData, prefillData]) => {
+      Promise.all([getOrigins(), getPrefillData(), getCustomsOffices()]).then(([originData, prefillData, officeData]) => {
         setOrigins(originData);
         setTariffRates(prefillData.tariffRates);
+        setCustomsOffices(officeData);
       }).catch(() => {});
       setDeclarationNumber(decl.declarationNumber);
       setCustomsOffice(decl.customsOffice || '');
@@ -275,8 +278,11 @@ export default function EditDeclarationPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office</label>
-                <input type="text" value={customsOffice} onChange={(e) => setCustomsOffice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                <select value={customsOffice} onChange={(e) => setCustomsOffice(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                  <option value="">— Select customs office —</option>
+                  {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
+                </select>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
