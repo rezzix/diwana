@@ -44,6 +44,13 @@ public class DeclarationController {
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDtoList(declarations)));
     }
 
+    @GetMapping("/pending-review")
+    @PreAuthorize("hasRole('CONTROLLER')")
+    public ResponseEntity<ApiResponse<List<DeclarationDto>>> listPendingReview() {
+        List<Declaration> declarations = declarationService.listPendingReview();
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDtoList(declarations)));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('DECLARANT')")
     public ResponseEntity<ApiResponse<DeclarationDto>> create(
