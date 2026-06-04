@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getPendingReviewDeclarations, type DeclarationDto } from '@/api/declarations';
+import { useAuthStore } from '@/stores/authStore';
 
 export default function ControlDeskPage() {
+  const user = useAuthStore((s) => s.user);
   const [declarations, setDeclarations] = useState<DeclarationDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,6 +42,12 @@ export default function ControlDeskPage() {
             <Link to="/" className="text-sm text-primary-600 hover:underline">&larr; Dashboard</Link>
             <span className="text-gray-300">|</span>
             <h1 className="text-lg font-bold text-gray-900">Control Desk</h1>
+            {user?.customsOfficeName && (
+              <>
+                <span className="text-gray-300">|</span>
+                <span className="text-sm text-gray-500">{user.customsOfficeName}</span>
+              </>
+            )}
           </div>
           <button onClick={refresh}
             className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">

@@ -1,6 +1,7 @@
 package com.diwana.user;
 
 import com.diwana.company.Company;
+import com.diwana.customsoffice.CustomsOffice;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -43,6 +44,10 @@ public class User {
     @JoinColumn(name = "company_id")
     private Company company;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customs_office_id")
+    private CustomsOffice customsOffice;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -71,6 +76,8 @@ public class User {
     public void setActive(boolean active) { this.active = active; }
     public Company getCompany() { return company; }
     public void setCompany(Company company) { this.company = company; }
+    public CustomsOffice getCustomsOffice() { return customsOffice; }
+    public void setCustomsOffice(CustomsOffice customsOffice) { this.customsOffice = customsOffice; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

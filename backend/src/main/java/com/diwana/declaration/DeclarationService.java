@@ -118,6 +118,13 @@ public class DeclarationService {
                 List.of(Declaration.Status.SUBMITTED, Declaration.Status.UNDER_REVIEW, Declaration.Status.INFO_REQUESTED));
     }
 
+    @Transactional(readOnly = true)
+    public List<Declaration> listPendingReviewByOffice(String customsOfficeName) {
+        return declarationRepository.findByStatusInAndCustomsOfficeOrderByCreatedAtAsc(
+                List.of(Declaration.Status.SUBMITTED, Declaration.Status.UNDER_REVIEW, Declaration.Status.INFO_REQUESTED),
+                customsOfficeName);
+    }
+
     @Transactional
     public Declaration update(Long id, DeclarationDto.UpdateRequest request, Long userId) {
         Declaration declaration = getById(id);

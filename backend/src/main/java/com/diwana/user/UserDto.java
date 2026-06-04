@@ -13,7 +13,9 @@ public record UserDto(
         String role,
         boolean active,
         Long companyId,
-        String companyName
+        String companyName,
+        Long customsOfficeId,
+        String customsOfficeName
 ) {
 
     public record CreateUserRequest(
@@ -23,6 +25,7 @@ public record UserDto(
             @NotBlank @Size(min = 1, max = 100) String firstName,
             @NotBlank @Size(min = 1, max = 100) String lastName,
             @NotBlank String role,
-            Long companyId
+            Long companyId,
+            Long customsOfficeId
     ) {}
 }

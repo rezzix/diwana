@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { listUsers, createUser, deactivateUser, type CreateUserRequest } from '@/api/users';
+import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
 import type { UserDto, PaginationInfo } from '@/types';
 
 const roleBadge: Record<string, string> = {
@@ -21,6 +22,7 @@ export default function AdminPage() {
 
   // Create user form
   const [showCreate, setShowCreate] = useState(false);
+  const [customsOffices, setCustomsOffices] = useState<CustomsOfficeDto[]>([]);
   const [form, setForm] = useState({
     username: '',
     email: '',
@@ -29,6 +31,7 @@ export default function AdminPage() {
     lastName: '',
     role: 'DECLARANT' as 'DECLARANT' | 'CONTROLLER',
     companyId: '',
+    customsOfficeId: '',
   });
   const [creating, setCreating] = useState(false);
 
@@ -53,6 +56,10 @@ export default function AdminPage() {
     fetchUsers();
   }, [page, roleFilter]);
 
+  useEffect(() => {
+    getCustomsOffices().then(setCustomsOffices).catch(() => {});
+  }, []);
+
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
     setPage(0);
@@ -73,11 +80,12 @@ export default function AdminPage() {
         lastName: form.lastName,
         role: form.role,
         companyId: form.companyId ? Number(form.companyId) : null,
+        customsOfficeId: form.customsOfficeId ? Number(form.customsOfficeId) : null,
       };
       await createUser(data);
       setSuccess(`User ${form.username} created successfully`);
       setShowCreate(false);
-      setForm({ username: '', email: '', password: '', firstName: '', lastName: '', role: 'DECLARANT', companyId: '' });
+      setForm({ username: '', email: '', password: '', firstName: '', lastName: '', role: 'DECLARANT', companyId: '', customsOfficeId: '' });
       fetchUsers();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create user');
@@ -202,6 +210,17 @@ export default function AdminPage() {
                   placeholder={form.role === 'DECLARANT' ? 'Required for declarants' : 'Not needed for controllers'}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
               </div>
+              {form.role === 'CONTROLLER' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office *</label>
+                  <select value={form.customsOfficeId}
+                    onChange={(e) => setForm({ ...form, customsOfficeId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    <option value="">Select office...</option>
+                    {customsOffices.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => setShowCreate(false)}
@@ -225,7 +244,7 @@ export default function AdminPage() {
                 <th className="text-left px-4 py-3 font-medium text-gray-700">Username</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-700">Email</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-700">Role</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">Company</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-700">Company / Office</th>
                 <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
                 <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
               </tr>
@@ -245,7 +264,9 @@ export default function AdminPage() {
                       {user.role}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{user.companyName || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {user.role === 'CONTROLLER' ? (user.customsOfficeName || '—') : (user.companyName || '—')}
+                  </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-block w-2 h-2 rounded-full ${user.active ? 'bg-green-500' : 'bg-red-500'}`} />
                   </td>
