@@ -85,6 +85,11 @@ public class DeclarationService {
                 .orElseThrow(() -> new com.diwana.common.exception.EntityNotFoundException("Declaration", id));
     }
 
+    @Transactional(readOnly = true)
+    public List<Declaration> listByDeclarant(Long declarantId) {
+        return declarationRepository.findByDeclarantIdOrderByCreatedAtDesc(declarantId);
+    }
+
     @Transactional
     public Declaration update(Long id, DeclarationDto.UpdateRequest request, Long userId) {
         Declaration declaration = getById(id);
@@ -159,6 +164,19 @@ public class DeclarationService {
         item.setVatAmount(vatAmount);
         item.setCurrency(li.currency() != null ? li.currency() : "MAD");
         return item;
+    }
+
+    @Transactional
+    public void delete(Long id, Long userId) {
+        Declaration declaration = getById(id);
+        if (declaration.getStatus() != Declaration.Status.DRAFT) {
+            throw new BadRequestException("Only draft declarations can be deleted");
+        }
+        User declarant = userService.getById(userId);
+        if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
+            throw new BadRequestException("You can only delete your own declarations");
+        }
+        declarationRepository.delete(declaration);
     }
 
     private record TariffRateResolver(BigDecimal dutyRate, BigDecimal vatRate) {}

@@ -1,30 +1,42 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getPrefillData, type CompanyPrefill, type TariffRateDto } from '@/api/declarations';
+import { deleteDeclaration, type DeclarationDto } from '@/api/declarations';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function DeclarationsPage() {
   const user = useAuthStore((s) => s.user);
-  const [company, setCompany] = useState<CompanyPrefill | null>(null);
-  const [tariffRates, setTariffRates] = useState<TariffRateDto[]>([]);
+  const [declarations, setDeclarations] = useState<DeclarationDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const fetchDeclarations = async () => {
+    if (user?.role !== 'DECLARANT') return;
+    try {
+      const res = await fetch('/api/declarations', { credentials: 'include' });
+      const json = await res.json();
+      setDeclarations(json.data || []);
+    } catch {
+      // ignore — prefill data will still load
+    }
+  };
 
   useEffect(() => {
-    getPrefillData()
-      .then((data) => {
-        setCompany(data.company);
-        setTariffRates(data.tariffRates);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    fetchDeclarations().finally(() => setLoading(false));
+  }, [user]);
+
+  const handleDelete = async (id: number, declNumber: string) => {
+    if (!confirm(`Delete declaration ${declNumber}? This cannot be undone.`)) return;
+    setError('');
+    try {
+      await deleteDeclaration(id);
+      setDeclarations(declarations.filter((d) => d.id !== id));
+    } catch {
+      setError('Failed to delete declaration');
+    }
+  };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
-        <div className="text-gray-400">Loading...</div>
-      </div>
-    );
+    return <div className="min-h-screen bg-surface flex items-center justify-center"><div className="text-gray-400">Loading...</div></div>;
   }
 
   return (
@@ -36,124 +48,106 @@ export default function DeclarationsPage() {
             <span className="text-gray-300">|</span>
             <h1 className="text-lg font-bold text-gray-900">Declarations</h1>
           </div>
-          <Link
-            to="/declarations/new"
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors"
-          >
-            + New Declaration
-          </Link>
+          {user?.role === 'DECLARANT' && (
+            <Link to="/declarations/new" className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
+              + New Declaration
+            </Link>
+          )}
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto p-6 space-y-6">
-        {/* Pre-filled Company Info */}
-        {company && (
-          <section className="bg-white border border-gray-200 rounded-lg p-6">
-            <h2 className="font-semibold text-gray-900 mb-3">Declarant Company — Pre-filled from Profile</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500 block">Company</span>
-                <span className="font-medium text-gray-900">{company.name}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">ICE</span>
-                <span className="font-medium text-gray-900">{company.ice || '—'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">RC</span>
-                <span className="font-medium text-gray-900">{company.rc || '—'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">NIF</span>
-                <span className="font-medium text-gray-900">{company.nif || '—'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">VAT</span>
-                <span className="font-medium text-gray-900">{company.vatNumber || '—'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">Address</span>
-                <span className="font-medium text-gray-900">{company.address || '—'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">Phone</span>
-                <span className="font-medium text-gray-900">{company.phone || '—'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">Email</span>
-                <span className="font-medium text-gray-900">{company.email || '—'}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">Customs Code</span>
-                <span className="font-medium text-gray-900">{company.customsCode || '—'}</span>
-              </div>
+        {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
+
+        {/* My Declarations */}
+        {user?.role === 'DECLARANT' && (
+          <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
+              <h2 className="font-semibold text-gray-900">My Declarations</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{declarations.length} declaration{declarations.length !== 1 ? 's' : ''}</p>
             </div>
-          </section>
-        )}
-
-        {!company && (
-          <section className="bg-white border border-gray-200 rounded-lg p-6">
-            <p className="text-gray-500 text-sm">
-              No company profile found. {user?.role === 'DECLARANT' ? 'Contact an admin to assign you to a company.' : ''}
-            </p>
-          </section>
-        )}
-
-        {/* Available Tariff Rates */}
-        <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="font-semibold text-gray-900">Reference Tariff Rates</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Pre-filled for new declarations — {tariffRates.length} rates available</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left px-4 py-2.5 font-medium text-gray-700">HS Code</th>
-                  <th className="text-left px-4 py-2.5 font-medium text-gray-700">Description</th>
-                  <th className="text-right px-4 py-2.5 font-medium text-gray-700">Duty Rate</th>
-                  <th className="text-right px-4 py-2.5 font-medium text-gray-700">VAT Rate</th>
-                  <th className="text-center px-4 py-2.5 font-medium text-gray-700">Unit</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tariffRates.map((rate) => (
-                  <tr key={rate.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-2 font-mono text-xs text-gray-900">{rate.hsCode}</td>
-                    <td className="px-4 py-2 text-gray-700">{rate.description}</td>
-                    <td className="px-4 py-2 text-right text-gray-900">{rate.dutyRate}%</td>
-                    <td className="px-4 py-2 text-right text-gray-900">{rate.vatRate}%</td>
-                    <td className="px-4 py-2 text-center text-gray-500">{rate.unit}</td>
+            {declarations.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 text-sm">
+                No declarations yet. Click "+ New Declaration" to create one.
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-2.5 font-medium text-gray-700">Declaration #</th>
+                    <th className="text-left px-4 py-2.5 font-medium text-gray-700">Status</th>
+                    <th className="text-right px-4 py-2.5 font-medium text-gray-700">Goods Lines</th>
+                    <th className="text-right px-4 py-2.5 font-medium text-gray-700">Total Value</th>
+                    <th className="text-right px-4 py-2.5 font-medium text-gray-700">Total Duty</th>
+                    <th className="text-right px-4 py-2.5 font-medium text-gray-700">Total VAT</th>
+                    <th className="text-right px-4 py-2.5 font-medium text-gray-700">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                </thead>
+                <tbody>
+                  {declarations.map((decl) => (
+                    <tr key={decl.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-2.5 font-mono text-xs text-gray-900">{decl.declarationNumber}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                          decl.status === 'DRAFT' ? 'bg-gray-100 text-gray-600' :
+                          decl.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' :
+                          decl.status === 'UNDER_REVIEW' ? 'bg-amber-100 text-amber-700' :
+                          decl.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
+                          {decl.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-gray-700">{decl.lineItems.length}</td>
+                      <td className="px-4 py-2.5 text-right text-gray-900">
+                        {decl.totalValue != null ? `${decl.totalValue.toFixed(2)} ${decl.lineItems[0]?.currency || 'MAD'}` : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-gray-900">
+                        {decl.totalDuty != null ? decl.totalDuty.toFixed(2) : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-gray-900">
+                        {decl.totalVat != null ? decl.totalVat.toFixed(2) : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right space-x-2">
+                        <Link
+                          to={`/declarations/${decl.id}`}
+                          className="text-xs px-2 py-1 bg-gray-50 text-gray-600 rounded hover:bg-gray-100 transition-colors"
+                        >
+                          View
+                        </Link>
+                        {decl.status === 'DRAFT' && (
+                          <>
+                            <Link
+                              to={`/declarations/${decl.id}/edit`}
+                              className="text-xs px-2 py-1 bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition-colors"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(decl.id, decl.declarationNumber)}
+                              className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        )}
 
-        {/* Bank Info for declarations */}
-        {company && company.bankName && (
-          <section className="bg-white border border-gray-200 rounded-lg p-6">
-            <h2 className="font-semibold text-gray-900 mb-3">Bank Details (for payment reference)</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500 block">Bank</span>
-                <span className="font-medium text-gray-900">{company.bankName}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">IBAN</span>
-                <span className="font-medium text-gray-900 font-mono text-xs">{company.bankIban}</span>
-              </div>
-              <div>
-                <span className="text-gray-500 block">SWIFT</span>
-                <span className="font-medium text-gray-900">{company.bankSwift}</span>
-              </div>
-            </div>
+        {user?.role !== 'DECLARANT' && (
+          <section className="bg-white border border-gray-200 rounded-lg p-8 text-center text-gray-400 text-sm">
+            <p>Declaration management is available for DECLARANT users only.</p>
           </section>
         )}
 
         <p className="text-xs text-gray-400 text-center pt-2">
-          Company profile data is automatically attached to new declarations. Update your profile from the Company Profile page.
+          Only draft declarations can be edited or deleted. Submit a declaration to proceed with review.
         </p>
       </main>
     </div>
