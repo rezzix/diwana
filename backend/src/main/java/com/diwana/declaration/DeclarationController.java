@@ -82,13 +82,13 @@ public class DeclarationController {
 
     @GetMapping("/prefill")
     @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
-    public PrefillData prefill(@AuthenticationPrincipal UserDetails currentUser) {
+    public ResponseEntity<ApiResponse<PrefillData>> prefill(@AuthenticationPrincipal UserDetails currentUser) {
         Long companyId = authHelper.getCurrentCompanyId(currentUser);
         Company company = companyId != null ? companyService.getById(companyId) : null;
 
         List<TariffRate> tariffRates = tariffRateRepository.findAll();
 
-        return new PrefillData(
+        PrefillData data = new PrefillData(
                 company != null ? new CompanyPrefill(
                         company.getName(),
                         company.getIce(),
@@ -108,6 +108,7 @@ public class DeclarationController {
                         t.getDutyRate(), t.getVatRate(), t.getUnit()
                 )).toList()
         );
+        return ResponseEntity.ok(ApiResponse.of(data));
     }
 
     public record PrefillData(CompanyPrefill company, List<TariffRateDto> tariffRates) {}
