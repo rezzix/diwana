@@ -163,12 +163,12 @@ export default function CreateDeclarationPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">HS Code *</label>
-                <input type="text" required value={lineForm.hsCode} onChange={(e) => setLineForm({ ...lineForm, hsCode: e.target.value })}
+                <input type="text" value={lineForm.hsCode} onChange={(e) => setLineForm({ ...lineForm, hsCode: e.target.value })}
                   className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
               </div>
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Description *</label>
-                <input type="text" required value={lineForm.description} onChange={(e) => setLineForm({ ...lineForm, description: e.target.value })}
+                <input type="text" value={lineForm.description} onChange={(e) => setLineForm({ ...lineForm, description: e.target.value })}
                   className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
               </div>
             </div>
@@ -183,7 +183,7 @@ export default function CreateDeclarationPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Qty *</label>
-                <input type="number" step="0.001" required value={lineForm.quantity}
+                <input type="number" step="0.001" value={lineForm.quantity}
                   onChange={(e) => {
                     setLineForm({ ...lineForm, quantity: e.target.value, totalValue: calcTotal(e.target.value, lineForm.unitPrice) });
                   }}
@@ -196,7 +196,7 @@ export default function CreateDeclarationPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Unit Price *</label>
-                <input type="number" step="0.001" required value={lineForm.unitPrice}
+                <input type="number" step="0.001" value={lineForm.unitPrice}
                   onChange={(e) => {
                     setLineForm({ ...lineForm, unitPrice: e.target.value, totalValue: calcTotal(lineForm.quantity, e.target.value) });
                   }}
