@@ -24,4 +24,5 @@ export interface DevUserDto {
   displayName: string;
   role: string;
   company: string | null;
+  customsOffice: string | null;
 }
