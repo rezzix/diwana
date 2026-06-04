@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { getDeclaration, deleteDeclaration, submitDeclaration, type DeclarationDto } from '@/api/declarations';
+import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, type DeclarationDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -53,8 +53,14 @@ export default function DeclarationDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [viewingAttachment, setViewingAttachment] = useState<AttachmentDto | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [approving, setApproving] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
 
   const isOwner = user?.role === 'DECLARANT';
+  const isController = user?.role === 'CONTROLLER';
 
   const fetchData = async () => {
     if (!id) return;
@@ -192,6 +198,52 @@ export default function DeclarationDetailPage() {
     }
   };
 
+  const handleResubmit = async () => {
+    if (!id || !decl) return;
+    if (!confirm(`Resubmit declaration ${decl.declarationNumber}? It will be moved back to draft so you can make corrections.`)) return;
+    setResubmitting(true);
+    setError('');
+    try {
+      const updated = await resubmitDeclaration(Number(id));
+      setDecl(updated);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to resubmit declaration');
+    } finally {
+      setResubmitting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!id || !decl || !rejectReason.trim()) return;
+    setRejecting(true);
+    setError('');
+    try {
+      const updated = await rejectDeclaration(Number(id), rejectReason.trim());
+      setDecl(updated);
+      setRejectReason('');
+      setShowRejectDialog(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to reject declaration');
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!id || !decl) return;
+    if (!confirm(`Approve declaration ${decl.declarationNumber}?`)) return;
+    setApproving(true);
+    setError('');
+    try {
+      const updated = await approveDeclaration(Number(id));
+      setDecl(updated);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to approve declaration');
+    } finally {
+      setApproving(false);
+    }
+  };
+
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -254,12 +306,70 @@ export default function DeclarationDetailPage() {
                 </button>
               </>
             )}
+            {isOwner && decl.status === 'REJECTED' && (
+              <>
+                <button onClick={handleResubmit} disabled={resubmitting}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
+                  {resubmitting ? 'Resubmitting...' : 'Resubmit'}
+                </button>
+                <Link to={`/declarations/${id}/edit`}
+                  className="px-3 py-1.5 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
+                  Edit &amp; Correct
+                </Link>
+              </>
+            )}
+            {isController && (decl.status === 'SUBMITTED' || decl.status === 'UNDER_REVIEW') && (
+              <>
+                <button onClick={handleApprove} disabled={approving}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
+                  {approving ? 'Approving...' : 'Approve'}
+                </button>
+                <button onClick={() => setShowRejectDialog(true)}
+                  className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors">
+                  Reject
+                </button>
+              </>
+            )}
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto p-6 space-y-6">
         {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
+
+        {/* Rejection reason */}
+        {decl.status === 'REJECTED' && decl.rejectionReason && (
+          <section className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="font-semibold text-red-900 mb-2">Rejection Reason</h2>
+            <p className="text-sm text-red-700 whitespace-pre-wrap">{decl.rejectionReason}</p>
+            <p className="mt-3 text-xs text-red-500">You can correct the declaration and resubmit it for review.</p>
+          </section>
+        )}
+
+        {/* Reject dialog */}
+        {showRejectDialog && (
+          <section className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="font-semibold text-red-900 mb-2">Reject Declaration</h2>
+            <p className="text-sm text-red-700 mb-3">Provide a reason for rejecting this declaration. The declarant will see this reason.</p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm mb-3"
+              placeholder="Enter rejection reason..."
+            />
+            <div className="flex gap-2">
+              <button onClick={handleReject} disabled={rejecting || !rejectReason.trim()}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50 transition-colors">
+                {rejecting ? 'Rejecting...' : 'Confirm Reject'}
+              </button>
+              <button onClick={() => { setShowRejectDialog(false); setRejectReason(''); }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* Declaration Overview */}
         <section className="bg-white border border-gray-200 rounded-lg p-6">
@@ -316,7 +426,7 @@ export default function DeclarationDetailPage() {
           </div>
 
           {/* Upload form */}
-          {isOwner && decl.status === 'DRAFT' && (
+          {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
             <form onSubmit={handleUpload} className="p-4 border-b border-gray-200 bg-gray-50/50">
               <div className="flex items-end gap-3">
                 <div>
@@ -372,13 +482,13 @@ export default function DeclarationDetailPage() {
                         className="text-xs px-2 py-1 bg-gray-50 text-primary-600 rounded hover:bg-gray-100 transition-colors">
                         Download
                       </a>
-                      {isOwner && decl.status === 'DRAFT' && (
+                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
                         <button onClick={() => triggerReplaceInput(att.id)}
                           className="text-xs px-2 py-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-100 transition-colors">
                           Replace
                         </button>
                       )}
-                      {isOwner && decl.status === 'DRAFT' && (
+                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
                         <button onClick={() => handleDeleteAtt(att.id)}
                           className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
                           Delete

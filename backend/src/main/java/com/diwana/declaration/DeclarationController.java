@@ -90,6 +90,33 @@ public class DeclarationController {
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(submitted)));
     }
 
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasRole('CONTROLLER')")
+    public ResponseEntity<ApiResponse<DeclarationDto>> reject(
+            @PathVariable Long id,
+            @Valid @RequestBody DeclarationDto.RejectRequest request) {
+        Declaration rejected = declarationService.reject(id, request.reason());
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(rejected)));
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasRole('CONTROLLER')")
+    public ResponseEntity<ApiResponse<DeclarationDto>> approve(
+            @PathVariable Long id) {
+        Declaration approved = declarationService.approve(id);
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(approved)));
+    }
+
+    @PostMapping("/{id}/resubmit")
+    @PreAuthorize("hasRole('DECLARANT')")
+    public ResponseEntity<ApiResponse<DeclarationDto>> resubmit(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        Declaration resubmitted = declarationService.resubmit(id, userId);
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(resubmitted)));
+    }
+
     @GetMapping("/prefill")
     @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<PrefillData>> prefill(@AuthenticationPrincipal UserDetails currentUser) {

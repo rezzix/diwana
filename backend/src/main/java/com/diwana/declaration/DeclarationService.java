@@ -99,8 +99,8 @@ public class DeclarationService {
     public Declaration update(Long id, DeclarationDto.UpdateRequest request, Long userId) {
         Declaration declaration = getById(id);
 
-        if (declaration.getStatus() != Declaration.Status.DRAFT) {
-            throw new BadRequestException("Only draft declarations can be edited");
+        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED) {
+            throw new BadRequestException("Only draft or rejected declarations can be edited");
         }
 
         User declarant = userService.getById(userId);
@@ -132,6 +132,12 @@ public class DeclarationService {
         declaration.setTotalDuty(totalDuty);
         declaration.setTotalVat(totalVat);
         declaration.setTotalValue(totalValue);
+
+        // If editing a rejected declaration, reset to draft and clear rejection reason
+        if (declaration.getStatus() == Declaration.Status.REJECTED) {
+            declaration.setStatus(Declaration.Status.DRAFT);
+            declaration.setRejectionReason(null);
+        }
 
         return declarationRepository.save(declaration);
     }
@@ -209,10 +215,47 @@ public class DeclarationService {
     }
 
     @Transactional
+    public Declaration reject(Long id, String reason) {
+        Declaration declaration = getById(id);
+        if (declaration.getStatus() != Declaration.Status.SUBMITTED && declaration.getStatus() != Declaration.Status.UNDER_REVIEW) {
+            throw new BadRequestException("Only submitted or under-review declarations can be rejected");
+        }
+        declaration.setStatus(Declaration.Status.REJECTED);
+        declaration.setRejectionReason(reason);
+        return declarationRepository.save(declaration);
+    }
+
+    @Transactional
+    public Declaration approve(Long id) {
+        Declaration declaration = getById(id);
+        if (declaration.getStatus() != Declaration.Status.SUBMITTED && declaration.getStatus() != Declaration.Status.UNDER_REVIEW) {
+            throw new BadRequestException("Only submitted or under-review declarations can be approved");
+        }
+        declaration.setStatus(Declaration.Status.APPROVED);
+        declaration.setRejectionReason(null);
+        return declarationRepository.save(declaration);
+    }
+
+    @Transactional
+    public Declaration resubmit(Long id, Long userId) {
+        Declaration declaration = getById(id);
+        if (declaration.getStatus() != Declaration.Status.REJECTED) {
+            throw new BadRequestException("Only rejected declarations can be resubmitted");
+        }
+        User declarant = userService.getById(userId);
+        if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
+            throw new BadRequestException("You can only resubmit your own declarations");
+        }
+        declaration.setStatus(Declaration.Status.DRAFT);
+        declaration.setRejectionReason(null);
+        return declarationRepository.save(declaration);
+    }
+
+    @Transactional
     public void delete(Long id, Long userId) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.DRAFT) {
-            throw new BadRequestException("Only draft declarations can be deleted");
+        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED) {
+            throw new BadRequestException("Only draft or rejected declarations can be deleted");
         }
         User declarant = userService.getById(userId);
         if (!declaration.getDeclarant().getId().equals(declarant.getId())) {

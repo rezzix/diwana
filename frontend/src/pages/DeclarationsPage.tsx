@@ -115,7 +115,7 @@ export default function DeclarationsPage() {
                         >
                           View
                         </Link>
-                        {decl.status === 'DRAFT' && (
+                        {(decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
                           <>
                             <Link
                               to={`/declarations/${decl.id}/edit`}
