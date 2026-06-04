@@ -72,11 +72,25 @@ export default function DeclarationDetailPage() {
 
   useEffect(() => { fetchData(); }, [id]);
 
+  const ALLOWED_FILE_TYPES = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.tif'];
+  const ALLOWED_MIME_PREFIXES = ['application/pdf', 'image/'];
+
+  const validateFileType = (file: File): boolean => {
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    const extOk = ALLOWED_FILE_TYPES.includes(ext);
+    const mimeOk = ALLOWED_MIME_PREFIXES.some((p) => file.type.startsWith(p));
+    return extOk || mimeOk;
+  };
+
   const handleUpload = async (e: FormEvent) => {
     e.preventDefault();
     const fileInput = document.getElementById('file-input') as HTMLInputElement;
     const file = fileInput?.files?.[0];
     if (!file || !id) return;
+    if (!validateFileType(file)) {
+      setError('Only PDF and image files (JPEG, PNG, TIFF) are allowed');
+      return;
+    }
 
     setUploading(true);
     setError('');
@@ -116,6 +130,10 @@ export default function DeclarationDetailPage() {
 
   const handleReplaceAtt = async (attId: number, file: File) => {
     if (!id) return;
+    if (!validateFileType(file)) {
+      setError('Only PDF and image files (JPEG, PNG, TIFF) are allowed');
+      return;
+    }
     setError('');
     try {
       const formData = new FormData();
@@ -140,7 +158,7 @@ export default function DeclarationDetailPage() {
   const triggerReplaceInput = (attId: number) => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.pdf,.jpg,.jpeg,.png,.tiff';
+    input.accept = '.pdf,image/*';
     input.onchange = () => {
       const file = input.files?.[0];
       if (file) handleReplaceAtt(attId, file);
@@ -310,7 +328,7 @@ export default function DeclarationDetailPage() {
                 </div>
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-gray-700 mb-1">File</label>
-                  <input id="file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.tiff"
+                  <input id="file-input" type="file" accept=".pdf,image/*"
                     className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
                 </div>
                 <button type="submit" disabled={uploading}
