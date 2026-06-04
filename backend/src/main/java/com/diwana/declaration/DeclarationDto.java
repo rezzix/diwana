@@ -24,7 +24,7 @@ public record DeclarationDto(
         List<LineItemDto> lineItems,
         String createdAt
 ) {
-    public record CreateRequest(
+    public record LineItemRequest(
             @NotBlank @Pattern(regexp = "^\\d{4}(\\.\\d{2,6})?$", message = "HS code must be 4 digits optionally followed by a dot and 2-6 digits (e.g. 8471.30)") String hsCode,
             @NotBlank String description,
             String countryOfOrigin,
@@ -34,22 +34,17 @@ public record DeclarationDto(
             @NotNull @Positive BigDecimal totalValue,
             BigDecimal dutyRate,
             BigDecimal vatRate,
-            String currency,
+            String currency
+    ) {}
+
+    public record CreateRequest(
+            @NotNull @Size(min = 1) @Valid List<LineItemRequest> lineItems,
             String customsOffice,
             String notes
     ) {}
 
     public record UpdateRequest(
-            @NotBlank @Pattern(regexp = "^\\d{4}(\\.\\d{2,6})?$", message = "HS code must be 4 digits optionally followed by a dot and 2-6 digits (e.g. 8471.30)") String hsCode,
-            @NotBlank String description,
-            String countryOfOrigin,
-            @NotNull @Positive BigDecimal quantity,
-            String unit,
-            @NotNull @Positive BigDecimal unitPrice,
-            @NotNull @Positive BigDecimal totalValue,
-            BigDecimal dutyRate,
-            BigDecimal vatRate,
-            String currency,
+            @NotNull @Size(min = 1) @Valid List<LineItemRequest> lineItems,
             String customsOffice,
             String notes
     ) {}

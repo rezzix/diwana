@@ -60,7 +60,7 @@ export interface DeclarationDto {
   createdAt: string;
 }
 
-export interface CreateDeclarationRequest {
+export interface LineItemRequest {
   hsCode: string;
   description: string;
   countryOfOrigin?: string;
@@ -71,21 +71,16 @@ export interface CreateDeclarationRequest {
   dutyRate?: number;
   vatRate?: number;
   currency?: string;
+}
+
+export interface CreateDeclarationRequest {
+  lineItems: LineItemRequest[];
   customsOffice?: string;
   notes?: string;
 }
 
 export interface UpdateDeclarationRequest {
-  hsCode: string;
-  description: string;
-  countryOfOrigin?: string;
-  quantity: number;
-  unit?: string;
-  unitPrice: number;
-  totalValue: number;
-  dutyRate?: number;
-  vatRate?: number;
-  currency?: string;
+  lineItems: LineItemRequest[];
   customsOffice?: string;
   notes?: string;
 }

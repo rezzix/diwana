@@ -11,8 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -42,62 +44,37 @@ public class DeclarationService {
         }
         Company company = companyService.getById(companyId);
 
-        // Resolve tariff rates
-        BigDecimal dutyRate = request.dutyRate();
-        BigDecimal vatRate = request.vatRate();
-
-        if (dutyRate == null || vatRate == null) {
-            // Look up from tariff table by HS code
-            // Use first 4 chars as chapter for lookup
-            String hsChapter = request.hsCode().length() >= 4 ? request.hsCode().substring(0, 4) : request.hsCode();
-            TariffRate rate = tariffRateRepository.findByHsCodeStartingWith(hsChapter);
-            if (rate != null) {
-                if (dutyRate == null) dutyRate = rate.getDutyRate();
-                if (vatRate == null) vatRate = rate.getVatRate();
-            } else {
-                if (dutyRate == null) dutyRate = BigDecimal.ZERO;
-                if (vatRate == null) vatRate = BigDecimal.ZERO;
-            }
-        }
-
-        // Calculate duties
-        BigDecimal totalValue = request.totalValue();
-        BigDecimal dutyAmount = totalValue.multiply(dutyRate).divide(BigDecimal.valueOf(100));
-        BigDecimal vatAmount = totalValue.multiply(vatRate).divide(BigDecimal.valueOf(100));
-
-        // Generate declaration number
         String datePart = DateTimeFormatter.ofPattern("yyMMddHHmm").format(LocalDateTime.now());
         String declNumber = "DEC-" + datePart + "-" + (numberCounter.incrementAndGet() % 10000);
 
-        // Create declaration
         Declaration declaration = new Declaration();
         declaration.setDeclarationNumber(declNumber);
         declaration.setDeclarant(declarant);
         declaration.setCompany(company);
         declaration.setCustomsOffice(request.customsOffice());
-        declaration.setTotalDuty(dutyAmount);
-        declaration.setTotalVat(vatAmount);
-        declaration.setTotalValue(totalValue);
         declaration.setNotes(request.notes());
         declaration.setStatus(Declaration.Status.DRAFT);
 
-        // Create line item
-        DeclarationLineItem item = new DeclarationLineItem();
-        item.setDeclaration(declaration);
-        item.setHsCode(request.hsCode());
-        item.setDescription(request.description());
-        item.setCountryOfOrigin(request.countryOfOrigin());
-        item.setQuantity(request.quantity());
-        item.setUnit(request.unit());
-        item.setUnitPrice(request.unitPrice());
-        item.setTotalValue(totalValue);
-        item.setDutyRate(dutyRate);
-        item.setDutyAmount(dutyAmount);
-        item.setVatRate(vatRate);
-        item.setVatAmount(vatAmount);
-        item.setCurrency(request.currency() != null ? request.currency() : "MAD");
+        BigDecimal totalDuty = BigDecimal.ZERO;
+        BigDecimal totalVat = BigDecimal.ZERO;
+        BigDecimal totalValue = BigDecimal.ZERO;
 
-        declaration.getLineItems().add(item);
+        for (DeclarationDto.LineItemRequest li : request.lineItems()) {
+            TariffRateResolver resolved = resolveRates(li.hsCode(), li.dutyRate(), li.vatRate());
+            BigDecimal lineTotal = li.totalValue();
+            BigDecimal dutyAmount = lineTotal.multiply(resolved.dutyRate()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+            BigDecimal vatAmount = lineTotal.multiply(resolved.vatRate()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+            totalDuty = totalDuty.add(dutyAmount);
+            totalVat = totalVat.add(vatAmount);
+            totalValue = totalValue.add(lineTotal);
+
+            DeclarationLineItem item = buildLineItem(declaration, li, resolved.dutyRate(), resolved.vatRate(), dutyAmount, vatAmount);
+            declaration.getLineItems().add(item);
+        }
+
+        declaration.setTotalDuty(totalDuty);
+        declaration.setTotalVat(totalVat);
+        declaration.setTotalValue(totalValue);
 
         return declarationRepository.save(declaration);
     }
@@ -121,15 +98,37 @@ public class DeclarationService {
             throw new BadRequestException("You can only edit your own declarations");
         }
 
-        // Clear existing line items and replace
         declaration.getLineItems().clear();
+        declaration.setCustomsOffice(request.customsOffice());
+        declaration.setNotes(request.notes());
 
-        // Resolve tariff rates
-        BigDecimal dutyRate = request.dutyRate();
-        BigDecimal vatRate = request.vatRate();
+        BigDecimal totalDuty = BigDecimal.ZERO;
+        BigDecimal totalVat = BigDecimal.ZERO;
+        BigDecimal totalValue = BigDecimal.ZERO;
 
+        for (DeclarationDto.LineItemRequest li : request.lineItems()) {
+            TariffRateResolver resolved = resolveRates(li.hsCode(), li.dutyRate(), li.vatRate());
+            BigDecimal lineTotal = li.totalValue();
+            BigDecimal dutyAmount = lineTotal.multiply(resolved.dutyRate()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+            BigDecimal vatAmount = lineTotal.multiply(resolved.vatRate()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
+            totalDuty = totalDuty.add(dutyAmount);
+            totalVat = totalVat.add(vatAmount);
+            totalValue = totalValue.add(lineTotal);
+
+            DeclarationLineItem item = buildLineItem(declaration, li, resolved.dutyRate(), resolved.vatRate(), dutyAmount, vatAmount);
+            declaration.getLineItems().add(item);
+        }
+
+        declaration.setTotalDuty(totalDuty);
+        declaration.setTotalVat(totalVat);
+        declaration.setTotalValue(totalValue);
+
+        return declarationRepository.save(declaration);
+    }
+
+    private TariffRateResolver resolveRates(String hsCode, BigDecimal dutyRate, BigDecimal vatRate) {
         if (dutyRate == null || vatRate == null) {
-            String hsChapter = request.hsCode().length() >= 4 ? request.hsCode().substring(0, 4) : request.hsCode();
+            String hsChapter = hsCode.length() >= 4 ? hsCode.substring(0, 4) : hsCode;
             TariffRate rate = tariffRateRepository.findByHsCodeStartingWith(hsChapter);
             if (rate != null) {
                 if (dutyRate == null) dutyRate = rate.getDutyRate();
@@ -139,34 +138,28 @@ public class DeclarationService {
                 if (vatRate == null) vatRate = BigDecimal.ZERO;
             }
         }
+        return new TariffRateResolver(dutyRate, vatRate);
+    }
 
-        BigDecimal totalValue = request.totalValue();
-        BigDecimal dutyAmount = totalValue.multiply(dutyRate).divide(BigDecimal.valueOf(100));
-        BigDecimal vatAmount = totalValue.multiply(vatRate).divide(BigDecimal.valueOf(100));
-
-        declaration.setCustomsOffice(request.customsOffice());
-        declaration.setTotalDuty(dutyAmount);
-        declaration.setTotalVat(vatAmount);
-        declaration.setTotalValue(totalValue);
-        declaration.setNotes(request.notes());
-
+    private DeclarationLineItem buildLineItem(Declaration declaration, DeclarationDto.LineItemRequest li,
+                                               BigDecimal dutyRate, BigDecimal vatRate,
+                                               BigDecimal dutyAmount, BigDecimal vatAmount) {
         DeclarationLineItem item = new DeclarationLineItem();
         item.setDeclaration(declaration);
-        item.setHsCode(request.hsCode());
-        item.setDescription(request.description());
-        item.setCountryOfOrigin(request.countryOfOrigin());
-        item.setQuantity(request.quantity());
-        item.setUnit(request.unit());
-        item.setUnitPrice(request.unitPrice());
-        item.setTotalValue(totalValue);
+        item.setHsCode(li.hsCode());
+        item.setDescription(li.description());
+        item.setCountryOfOrigin(li.countryOfOrigin());
+        item.setQuantity(li.quantity());
+        item.setUnit(li.unit());
+        item.setUnitPrice(li.unitPrice());
+        item.setTotalValue(li.totalValue());
         item.setDutyRate(dutyRate);
         item.setDutyAmount(dutyAmount);
         item.setVatRate(vatRate);
         item.setVatAmount(vatAmount);
-        item.setCurrency(request.currency() != null ? request.currency() : "MAD");
-
-        declaration.getLineItems().add(item);
-
-        return declarationRepository.save(declaration);
+        item.setCurrency(li.currency() != null ? li.currency() : "MAD");
+        return item;
     }
+
+    private record TariffRateResolver(BigDecimal dutyRate, BigDecimal vatRate) {}
 }
