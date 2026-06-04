@@ -90,4 +90,50 @@ public class DeclarationAttachmentService {
         return attachmentRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Attachment", id));
     }
+
+    @Transactional
+    public DeclarationAttachment replace(Long declarationId, Long attachmentId,
+                                         MultipartFile file, DeclarationAttachment.DocType docType, Long userId) {
+        Declaration declaration = declarationService.getById(declarationId);
+        if (declaration.getStatus() != Declaration.Status.DRAFT) {
+            throw new IllegalArgumentException("Can only replace attachments on draft declarations");
+        }
+
+        DeclarationAttachment attachment = attachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Attachment", attachmentId));
+
+        if (!attachment.getDeclaration().getId().equals(declarationId)) {
+            throw new IllegalArgumentException("Attachment does not belong to this declaration");
+        }
+
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("File size exceeds 10MB limit");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || (!contentType.startsWith("image/") && !contentType.equals("application/pdf"))) {
+            throw new IllegalArgumentException("Only PDF and image files (JPEG, PNG, TIFF) are allowed");
+        }
+
+        // Delete old file from storage
+        storageService.delete(attachment.getFilePath());
+
+        // Store new file
+        String storedPath;
+        try {
+            storedPath = storageService.store(file.getBytes(), file.getOriginalFilename(), contentType);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to store file", e);
+        }
+
+        // Update attachment record
+        attachment.setDocType(docType);
+        attachment.setFileName(file.getOriginalFilename());
+        attachment.setFilePath(storedPath);
+        attachment.setContentType(contentType);
+        attachment.setFileSize(file.getSize());
+        attachment.setUploadedBy(userId);
+
+        return attachmentRepository.save(attachment);
+    }
 }

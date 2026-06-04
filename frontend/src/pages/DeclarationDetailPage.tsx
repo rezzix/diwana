@@ -88,6 +88,40 @@ export default function DeclarationDetailPage() {
     }
   };
 
+  const handleReplaceAtt = async (attId: number, file: File) => {
+    if (!id) return;
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/api/declarations/${id}/attachments/${attId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || json.data || 'Replace failed');
+      }
+      const attRes = await fetch(`/api/declarations/${id}/attachments`, { credentials: 'include' });
+      const attJson = await attRes.json();
+      setAttachments(attJson.data || []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to replace document');
+    }
+  };
+
+  const triggerReplaceInput = (attId: number) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.jpg,.jpeg,.png,.tiff';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) handleReplaceAtt(attId, file);
+    };
+    input.click();
+  };
+
   const handleDeleteDecl = async () => {
     if (!id || !decl) return;
     if (!confirm(`Delete declaration ${decl.declarationNumber}? This cannot be undone.`)) return;
@@ -258,6 +292,12 @@ export default function DeclarationDetailPage() {
                         className="text-xs px-2 py-1 bg-gray-50 text-primary-600 rounded hover:bg-gray-100 transition-colors">
                         Download
                       </a>
+                      {isOwner && decl.status === 'DRAFT' && (
+                        <button onClick={() => triggerReplaceInput(att.id)}
+                          className="text-xs px-2 py-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-100 transition-colors">
+                          Replace
+                        </button>
+                      )}
                       {isOwner && decl.status === 'DRAFT' && (
                         <button onClick={() => handleDeleteAtt(att.id)}
                           className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
