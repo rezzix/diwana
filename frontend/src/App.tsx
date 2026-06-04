@@ -8,6 +8,7 @@ import CompanyProfilePage from '@/pages/CompanyProfilePage';
 import DeclarationsPage from '@/pages/DeclarationsPage';
 import CreateDeclarationPage from '@/pages/CreateDeclarationPage';
 import EditDeclarationPage from '@/pages/EditDeclarationPage';
+import DeclarationDetailPage from '@/pages/DeclarationDetailPage';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import RoleGuard from '@/components/guards/RoleGuard';
@@ -155,7 +156,7 @@ function AppRoutes() {
       />
       <Route
         path="/declarations/:id"
-        element={<AuthGuard><RoleGuard roles={['DECLARANT', 'CONTROLLER', 'ADMIN']}><DeclarationsPage /></RoleGuard></AuthGuard>}
+        element={<AuthGuard><RoleGuard roles={['DECLARANT', 'CONTROLLER', 'ADMIN']}><DeclarationDetailPage /></RoleGuard></AuthGuard>}
       />
       <Route
         path="/control"
