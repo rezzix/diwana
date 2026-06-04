@@ -17,11 +17,13 @@ export interface CompanyPrefill {
 
 export interface TariffRateDto {
   id: number;
-  hsCode: string;
+  hsCode: string | null;
   description: string;
   dutyRate: number;
   vatRate: number;
   unit: string;
+  originCode: string | null;
+  originName: string | null;
 }
 
 export interface PrefillData {

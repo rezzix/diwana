@@ -49,8 +49,8 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         seedCompanies();
-        seedTariffRates();
         seedOrigins();
+        seedTariffRates();
         seedUsers();
     }
 
@@ -91,29 +91,56 @@ public class DataSeeder implements CommandLineRunner {
     private void seedTariffRates() {
         if (tariffRateRepository.count() > 0) return;
 
+        // Origins must be seeded first so we can reference them
+        if (originRepository.count() == 0) {
+            seedOrigins();
+        }
+        Origin china = originRepository.findById(1L).orElse(null);
+        // Find China by code since we can't rely on specific IDs
+        for (Origin o : originRepository.findAll()) {
+            if ("CN".equals(o.getCode())) { china = o; break; }
+        }
+        Origin eu = null;
+        for (Origin o : originRepository.findAll()) {
+            if ("FR".equals(o.getCode())) { eu = o; break; }
+        }
+
         List<TariffRate> rates = List.of(
-            createTariff("1001.19", "Blé dur (autre que de semence)", new BigDecimal("30.0000"), new BigDecimal("10.00"), "T"),
-            createTariff("1507.10", "Huile de soja brute, même dégommée", new BigDecimal("20.0000"), new BigDecimal("10.00"), "L"),
-            createTariff("2709.00", "Huiles brutes de pétrole", new BigDecimal("5.0000"), new BigDecimal("14.00"), "L"),
-            createTariff("3004.90", "Médicaments, conditionnés pour la vente au détail", new BigDecimal("5.0000"), new BigDecimal("0.00"), "KG"),
-            createTariff("8413.70", "Pompes centrifuges", new BigDecimal("17.0000"), new BigDecimal("20.00"), "U"),
-            createTariff("8471.30", "Ordinateurs portables, poids ≤ 10 kg", new BigDecimal("0.0000"), new BigDecimal("20.00"), "U"),
-            createTariff("8703.23", "Voitures de tourisme, cylindrée 1500-3000 cm³", new BigDecimal("25.0000"), new BigDecimal("20.00"), "U"),
-            createTariff("9403.30", "Meubles en bois pour bureaux", new BigDecimal("25.0000"), new BigDecimal("20.00"), "KG"),
-            createTariff("6109.10", "T-shirts en coton, bonneterie", new BigDecimal("25.0000"), new BigDecimal("20.00"), "U"),
-            createTariff("0805.10", "Oranges fraîches ou sèches", new BigDecimal("10.0000"), new BigDecimal("10.00"), "KG")
+            // Origin-specific rates (CN - China)
+            createTariff("8471.30", "Ordinateurs portables, poids ≤ 10 kg (Chine)", new BigDecimal("2.5000"), new BigDecimal("20.00"), "U", china),
+            createTariff("6109.10", "T-shirts en coton, bonneterie (Chine)", new BigDecimal("30.0000"), new BigDecimal("20.00"), "U", china),
+            createTariff("8703.23", "Voitures de tourisme, cylindrée 1500-3000 cm³ (Chine)", new BigDecimal("35.0000"), new BigDecimal("20.00"), "U", china),
+
+            // Origin-specific rates (FR - France/EU)
+            createTariff("8703.23", "Voitures de tourisme, cylindrée 1500-3000 cm³ (France)", new BigDecimal("17.5000"), new BigDecimal("20.00"), "U", eu),
+
+            // General rates (no origin — applies to any origin without a specific tariff)
+            createTariff("1001.19", "Blé dur (autre que de semence)", new BigDecimal("30.0000"), new BigDecimal("10.00"), "T", null),
+            createTariff("1507.10", "Huile de soja brute, même dégommée", new BigDecimal("20.0000"), new BigDecimal("10.00"), "L", null),
+            createTariff("2709.00", "Huiles brutes de pétrole", new BigDecimal("5.0000"), new BigDecimal("14.00"), "L", null),
+            createTariff("3004.90", "Médicaments, conditionnés pour la vente au détail", new BigDecimal("5.0000"), new BigDecimal("0.00"), "KG", null),
+            createTariff("8413.70", "Pompes centrifuges", new BigDecimal("17.0000"), new BigDecimal("20.00"), "U", null),
+            createTariff("8471.30", "Ordinateurs portables, poids ≤ 10 kg", new BigDecimal("0.0000"), new BigDecimal("20.00"), "U", null),
+            createTariff("9403.30", "Meubles en bois pour bureaux", new BigDecimal("25.0000"), new BigDecimal("20.00"), "KG", null),
+            createTariff("6109.10", "T-shirts en coton, bonneterie", new BigDecimal("25.0000"), new BigDecimal("20.00"), "U", null),
+            createTariff("0805.10", "Oranges fraîches ou sèches", new BigDecimal("10.0000"), new BigDecimal("10.00"), "KG", null),
+            createTariff("8703.23", "Voitures de tourisme, cylindrée 1500-3000 cm³", new BigDecimal("25.0000"), new BigDecimal("20.00"), "U", null),
+
+            // Global default (no origin, no HS code)
+            createTariff(null, "Tarif par défaut (tous produits, toutes origines)", new BigDecimal("10.0000"), new BigDecimal("20.00"), "U", null)
         );
 
         tariffRateRepository.saveAll(rates);
     }
 
-    private TariffRate createTariff(String hsCode, String description, BigDecimal dutyRate, BigDecimal vatRate, String unit) {
+    private TariffRate createTariff(String hsCode, String description, BigDecimal dutyRate, BigDecimal vatRate, String unit, Origin origin) {
         TariffRate rate = new TariffRate();
         rate.setHsCode(hsCode);
         rate.setDescription(description);
         rate.setDutyRate(dutyRate);
         rate.setVatRate(vatRate);
         rate.setUnit(unit);
+        rate.setOrigin(origin);
         rate.setActive(true);
         return rate;
     }

@@ -3,6 +3,8 @@ package com.diwana.declaration;
 import com.diwana.common.exception.BadRequestException;
 import com.diwana.company.Company;
 import com.diwana.company.CompanyService;
+import com.diwana.origin.Origin;
+import com.diwana.origin.OriginRepository;
 import com.diwana.tariff.TariffRate;
 import com.diwana.tariff.TariffRateRepository;
 import com.diwana.user.User;
@@ -24,15 +26,18 @@ public class DeclarationService {
     private final CompanyService companyService;
     private final UserService userService;
     private final TariffRateRepository tariffRateRepository;
+    private final OriginRepository originRepository;
 
     private final AtomicLong numberCounter = new AtomicLong(System.currentTimeMillis());
 
     public DeclarationService(DeclarationRepository declarationRepository, CompanyService companyService,
-                               UserService userService, TariffRateRepository tariffRateRepository) {
+                               UserService userService, TariffRateRepository tariffRateRepository,
+                               OriginRepository originRepository) {
         this.declarationRepository = declarationRepository;
         this.companyService = companyService;
         this.userService = userService;
         this.tariffRateRepository = tariffRateRepository;
+        this.originRepository = originRepository;
     }
 
     @Transactional
@@ -60,7 +65,7 @@ public class DeclarationService {
         BigDecimal totalValue = BigDecimal.ZERO;
 
         for (DeclarationDto.LineItemRequest li : request.lineItems()) {
-            TariffRateResolver resolved = resolveRates(li.hsCode(), li.dutyRate(), li.vatRate());
+            TariffRateResolver resolved = resolveRates(li.hsCode(), li.countryOfOrigin(), li.dutyRate(), li.vatRate());
             BigDecimal lineTotal = li.totalValue();
             BigDecimal dutyAmount = lineTotal.multiply(resolved.dutyRate()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
             BigDecimal vatAmount = lineTotal.multiply(resolved.vatRate()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
@@ -112,7 +117,7 @@ public class DeclarationService {
         BigDecimal totalValue = BigDecimal.ZERO;
 
         for (DeclarationDto.LineItemRequest li : request.lineItems()) {
-            TariffRateResolver resolved = resolveRates(li.hsCode(), li.dutyRate(), li.vatRate());
+            TariffRateResolver resolved = resolveRates(li.hsCode(), li.countryOfOrigin(), li.dutyRate(), li.vatRate());
             BigDecimal lineTotal = li.totalValue();
             BigDecimal dutyAmount = lineTotal.multiply(resolved.dutyRate()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
             BigDecimal vatAmount = lineTotal.multiply(resolved.vatRate()).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
@@ -131,18 +136,55 @@ public class DeclarationService {
         return declarationRepository.save(declaration);
     }
 
-    private TariffRateResolver resolveRates(String hsCode, BigDecimal dutyRate, BigDecimal vatRate) {
-        if (dutyRate == null || vatRate == null) {
-            String hsChapter = hsCode.length() >= 4 ? hsCode.substring(0, 4) : hsCode;
-            TariffRate rate = tariffRateRepository.findByHsCodeStartingWith(hsChapter);
-            if (rate != null) {
-                if (dutyRate == null) dutyRate = rate.getDutyRate();
-                if (vatRate == null) vatRate = rate.getVatRate();
-            } else {
-                if (dutyRate == null) dutyRate = BigDecimal.ZERO;
-                if (vatRate == null) vatRate = BigDecimal.ZERO;
+    private TariffRateResolver resolveRates(String hsCode, String countryOfOrigin, BigDecimal dutyRate, BigDecimal vatRate) {
+        if (dutyRate != null && vatRate != null) {
+            return new TariffRateResolver(dutyRate, vatRate);
+        }
+
+        String hsChapter = hsCode.length() >= 4 ? hsCode.substring(0, 4) : hsCode;
+
+        // Resolve origin from country name
+        Origin origin = null;
+        if (countryOfOrigin != null && !countryOfOrigin.isBlank()) {
+            origin = originRepository.findByName(countryOfOrigin).orElse(null);
+        }
+
+        TariffRate rate = null;
+
+        if (origin != null) {
+            // Level 1: same origin + exact HS code
+            rate = tariffRateRepository.findByOriginAndHsCodeAndActiveTrue(origin, hsCode);
+            // Level 2: same origin + parent HS code
+            if (rate == null) {
+                rate = tariffRateRepository.findFirstByOriginAndHsCodeStartingWithAndActiveTrue(origin, hsChapter);
+            }
+            // Level 3: same origin + no HS code (origin-wide default)
+            if (rate == null) {
+                rate = tariffRateRepository.findByOriginAndHsCodeIsNullAndActiveTrue(origin);
             }
         }
+
+        // Level 4: no origin + exact HS code (HS-specific default)
+        if (rate == null) {
+            rate = tariffRateRepository.findByOriginIsNullAndHsCodeAndActiveTrue(hsCode);
+        }
+        // Level 5: no origin + parent HS code (HS-category default)
+        if (rate == null) {
+            rate = tariffRateRepository.findFirstByOriginIsNullAndHsCodeStartingWithAndActiveTrue(hsChapter);
+        }
+        // Level 6: no origin + no HS code (global default)
+        if (rate == null) {
+            rate = tariffRateRepository.findByOriginIsNullAndHsCodeIsNullAndActiveTrue();
+        }
+
+        if (rate != null) {
+            if (dutyRate == null) dutyRate = rate.getDutyRate();
+            if (vatRate == null) vatRate = rate.getVatRate();
+        } else {
+            if (dutyRate == null) dutyRate = BigDecimal.ZERO;
+            if (vatRate == null) vatRate = BigDecimal.ZERO;
+        }
+
         return new TariffRateResolver(dutyRate, vatRate);
     }
 

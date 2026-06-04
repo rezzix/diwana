@@ -105,7 +105,9 @@ public class DeclarationController {
                 ) : null,
                 tariffRates.stream().map(t -> new TariffRateDto(
                         t.getId(), t.getHsCode(), t.getDescription(),
-                        t.getDutyRate(), t.getVatRate(), t.getUnit()
+                        t.getDutyRate(), t.getVatRate(), t.getUnit(),
+                        t.getOrigin() != null ? t.getOrigin().getCode() : null,
+                        t.getOrigin() != null ? t.getOrigin().getName() : null
                 )).toList()
         );
     }
@@ -120,6 +122,7 @@ public class DeclarationController {
 
     public record TariffRateDto(
             Long id, String hsCode, String description,
-            java.math.BigDecimal dutyRate, java.math.BigDecimal vatRate, String unit
+            java.math.BigDecimal dutyRate, java.math.BigDecimal vatRate, String unit,
+            String originCode, String originName
     ) {}
 }
