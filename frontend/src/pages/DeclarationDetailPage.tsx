@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, type DeclarationDto } from '@/api/declarations';
+import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, type DeclarationDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -58,6 +58,9 @@ export default function DeclarationDetailPage() {
   const [approving, setApproving] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [requestingInfo, setRequestingInfo] = useState(false);
+  const [infoNote, setInfoNote] = useState('');
+  const [showInfoDialog, setShowInfoDialog] = useState(false);
 
   const isOwner = user?.role === 'DECLARANT';
   const isController = user?.role === 'CONTROLLER';
@@ -244,6 +247,22 @@ export default function DeclarationDetailPage() {
     }
   };
 
+  const handleRequestInfo = async () => {
+    if (!id || !decl || !infoNote.trim()) return;
+    setRequestingInfo(true);
+    setError('');
+    try {
+      const updated = await requestInfoDeclaration(Number(id), infoNote.trim());
+      setDecl(updated);
+      setInfoNote('');
+      setShowInfoDialog(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to request additional info');
+    } finally {
+      setRequestingInfo(false);
+    }
+  };
+
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -285,6 +304,7 @@ export default function DeclarationDetailPage() {
               decl.status === 'DRAFT' ? 'bg-gray-100 text-gray-600' :
               decl.status === 'SUBMITTED' ? 'bg-blue-100 text-blue-700' :
               decl.status === 'UNDER_REVIEW' ? 'bg-amber-100 text-amber-700' :
+              decl.status === 'INFO_REQUESTED' ? 'bg-purple-100 text-purple-700' :
               decl.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
               'bg-red-100 text-red-700'
             }`}>{decl.status}</span>
@@ -306,7 +326,7 @@ export default function DeclarationDetailPage() {
                 </button>
               </>
             )}
-            {isOwner && decl.status === 'REJECTED' && (
+            {isOwner && (decl.status === 'REJECTED' || decl.status === 'INFO_REQUESTED') && (
               <>
                 <button onClick={handleResubmit} disabled={resubmitting}
                   className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
@@ -319,6 +339,22 @@ export default function DeclarationDetailPage() {
               </>
             )}
             {isController && (decl.status === 'SUBMITTED' || decl.status === 'UNDER_REVIEW') && (
+              <>
+                <button onClick={handleApprove} disabled={approving}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
+                  {approving ? 'Approving...' : 'Approve'}
+                </button>
+                <button onClick={() => setShowInfoDialog(true)}
+                  className="px-3 py-1.5 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition-colors">
+                  Request Info
+                </button>
+                <button onClick={() => setShowRejectDialog(true)}
+                  className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors">
+                  Reject
+                </button>
+              </>
+            )}
+            {isController && decl.status === 'INFO_REQUESTED' && (
               <>
                 <button onClick={handleApprove} disabled={approving}
                   className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
@@ -346,6 +382,15 @@ export default function DeclarationDetailPage() {
           </section>
         )}
 
+        {/* Info request note */}
+        {decl.status === 'INFO_REQUESTED' && decl.infoRequestNote && (
+          <section className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+            <h2 className="font-semibold text-purple-900 mb-2">Additional Information Requested</h2>
+            <p className="text-sm text-purple-700 whitespace-pre-wrap">{decl.infoRequestNote}</p>
+            <p className="mt-3 text-xs text-purple-500">The customs controller has requested additional information. You can edit the declaration to provide it, then resubmit.</p>
+          </section>
+        )}
+
         {/* Reject dialog */}
         {showRejectDialog && (
           <section className="bg-red-50 border border-red-200 rounded-lg p-6">
@@ -364,6 +409,31 @@ export default function DeclarationDetailPage() {
                 {rejecting ? 'Rejecting...' : 'Confirm Reject'}
               </button>
               <button onClick={() => { setShowRejectDialog(false); setRejectReason(''); }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Request info dialog */}
+        {showInfoDialog && (
+          <section className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+            <h2 className="font-semibold text-amber-900 mb-2">Request Additional Information</h2>
+            <p className="text-sm text-amber-700 mb-3">Describe what additional information is needed from the declarant.</p>
+            <textarea
+              value={infoNote}
+              onChange={(e) => setInfoNote(e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm mb-3"
+              placeholder="e.g. Please provide the commercial invoice for goods line 2..."
+            />
+            <div className="flex gap-2">
+              <button onClick={handleRequestInfo} disabled={requestingInfo || !infoNote.trim()}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 disabled:opacity-50 transition-colors">
+                {requestingInfo ? 'Requesting...' : 'Confirm Request'}
+              </button>
+              <button onClick={() => { setShowInfoDialog(false); setInfoNote(''); }}
                 className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
@@ -426,7 +496,7 @@ export default function DeclarationDetailPage() {
           </div>
 
           {/* Upload form */}
-          {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
+          {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED' || decl.status === 'INFO_REQUESTED') && (
             <form onSubmit={handleUpload} className="p-4 border-b border-gray-200 bg-gray-50/50">
               <div className="flex items-end gap-3">
                 <div>
@@ -482,13 +552,13 @@ export default function DeclarationDetailPage() {
                         className="text-xs px-2 py-1 bg-gray-50 text-primary-600 rounded hover:bg-gray-100 transition-colors">
                         Download
                       </a>
-                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
+                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED' || decl.status === 'INFO_REQUESTED') && (
                         <button onClick={() => triggerReplaceInput(att.id)}
                           className="text-xs px-2 py-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-100 transition-colors">
                           Replace
                         </button>
                       )}
-                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED') && (
+                      {isOwner && (decl.status === 'DRAFT' || decl.status === 'REJECTED' || decl.status === 'INFO_REQUESTED') && (
                         <button onClick={() => handleDeleteAtt(att.id)}
                           className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
                           Delete

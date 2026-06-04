@@ -114,6 +114,15 @@ public class DeclarationController {
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(approved)));
     }
 
+    @PostMapping("/{id}/request-info")
+    @PreAuthorize("hasRole('CONTROLLER')")
+    public ResponseEntity<ApiResponse<DeclarationDto>> requestInfo(
+            @PathVariable Long id,
+            @Valid @RequestBody DeclarationDto.InfoRequestRequest request) {
+        Declaration flagged = declarationService.requestInfo(id, request.note());
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(flagged)));
+    }
+
     @PostMapping("/{id}/resubmit")
     @PreAuthorize("hasRole('DECLARANT')")
     public ResponseEntity<ApiResponse<DeclarationDto>> resubmit(
