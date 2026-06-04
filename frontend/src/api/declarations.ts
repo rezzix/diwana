@@ -107,6 +107,10 @@ export async function deleteDeclaration(id: number): Promise<void> {
   await apiDelete(`/declarations/${id}`);
 }
 
+export async function getPendingReviewDeclarations(): Promise<DeclarationDto[]> {
+  return apiGet<DeclarationDto[]>('/declarations/pending-review');
+}
+
 export async function submitDeclaration(id: number): Promise<DeclarationDto> {
   return apiPost<DeclarationDto>(`/declarations/${id}/submit`);
 }

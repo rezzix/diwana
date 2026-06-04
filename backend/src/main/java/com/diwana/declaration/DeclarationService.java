@@ -95,6 +95,12 @@ public class DeclarationService {
         return declarationRepository.findByDeclarantIdOrderByCreatedAtDesc(declarantId);
     }
 
+    @Transactional(readOnly = true)
+    public List<Declaration> listPendingReview() {
+        return declarationRepository.findByStatusInOrderByCreatedAtAsc(
+                List.of(Declaration.Status.SUBMITTED, Declaration.Status.UNDER_REVIEW));
+    }
+
     @Transactional
     public Declaration update(Long id, DeclarationDto.UpdateRequest request, Long userId) {
         Declaration declaration = getById(id);

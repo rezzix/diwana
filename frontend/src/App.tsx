@@ -9,6 +9,7 @@ import DeclarationsPage from '@/pages/DeclarationsPage';
 import CreateDeclarationPage from '@/pages/CreateDeclarationPage';
 import EditDeclarationPage from '@/pages/EditDeclarationPage';
 import DeclarationDetailPage from '@/pages/DeclarationDetailPage';
+import ControlDeskPage from '@/pages/ControlDeskPage';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import RoleGuard from '@/components/guards/RoleGuard';
@@ -75,16 +76,6 @@ function HomePage() {
           </Link>
         </div>
       </main>
-    </div>
-  );
-}
-
-function ControlDeskPage() {
-  return (
-    <div className="min-h-screen bg-surface p-6">
-      <Link to="/" className="text-sm text-primary-600 hover:underline">&larr; Back</Link>
-      <h1 className="text-2xl font-bold text-gray-900 mt-4">Control Desk</h1>
-      <p className="text-gray-500 mt-2">Review and approve declarations — CONTROLLER only.</p>
     </div>
   );
 }
