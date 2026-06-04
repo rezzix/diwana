@@ -18,6 +18,7 @@ import AccessDenied from '@/components/common/AccessDenied';
 function HomePage() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const role = user?.role;
 
   return (
     <div className="min-h-screen bg-surface">
@@ -28,8 +29,9 @@ function HomePage() {
             <span className="text-sm text-gray-500">
               {user?.firstName} {user?.lastName}
               {user?.companyName && <span className="text-gray-400"> ({user.companyName})</span>}
+              {user?.customsOfficeName && <span className="text-gray-400"> ({user.customsOfficeName})</span>}
               <span className="ml-2 px-1.5 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-700">
-                {user?.role}
+                {role}
               </span>
             </span>
             <button
@@ -46,34 +48,42 @@ function HomePage() {
         <p className="text-gray-500">Welcome to Diwana customs declaration management.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link
-            to="/company-profile"
-            className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-          >
-            <h2 className="font-semibold text-gray-900">Company Profile</h2>
-            <p className="text-sm text-gray-500 mt-1">DECLARANT / CONTROLLER</p>
-          </Link>
-          <Link
-            to="/admin"
-            className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-          >
-            <h2 className="font-semibold text-gray-900">Admin Panel</h2>
-            <p className="text-sm text-gray-500 mt-1">ADMIN only</p>
-          </Link>
-          <Link
-            to="/declarations"
-            className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-          >
-            <h2 className="font-semibold text-gray-900">Declarations</h2>
-            <p className="text-sm text-gray-500 mt-1">DECLARANT only</p>
-          </Link>
-          <Link
-            to="/control"
-            className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-          >
-            <h2 className="font-semibold text-gray-900">Control Desk</h2>
-            <p className="text-sm text-gray-500 mt-1">CONTROLLER only</p>
-          </Link>
+          {role === 'DECLARANT' && (
+            <Link
+              to="/company-profile"
+              className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+            >
+              <h2 className="font-semibold text-gray-900">Company Profile</h2>
+              <p className="text-sm text-gray-500 mt-1">View and edit your company details</p>
+            </Link>
+          )}
+          {role === 'ADMIN' && (
+            <Link
+              to="/admin"
+              className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+            >
+              <h2 className="font-semibold text-gray-900">Admin Panel</h2>
+              <p className="text-sm text-gray-500 mt-1">Manage users and system configuration</p>
+            </Link>
+          )}
+          {role === 'DECLARANT' && (
+            <Link
+              to="/declarations"
+              className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+            >
+              <h2 className="font-semibold text-gray-900">Declarations</h2>
+              <p className="text-sm text-gray-500 mt-1">Create and manage customs declarations</p>
+            </Link>
+          )}
+          {role === 'CONTROLLER' && (
+            <Link
+              to="/control"
+              className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+            >
+              <h2 className="font-semibold text-gray-900">Control Desk</h2>
+              <p className="text-sm text-gray-500 mt-1">Review and process incoming declarations</p>
+            </Link>
+          )}
         </div>
       </main>
     </div>
