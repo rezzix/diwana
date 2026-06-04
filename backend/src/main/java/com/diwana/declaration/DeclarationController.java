@@ -80,6 +80,16 @@ public class DeclarationController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/submit")
+    @PreAuthorize("hasRole('DECLARANT')")
+    public ResponseEntity<ApiResponse<DeclarationDto>> submit(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        Declaration submitted = declarationService.submit(id, userId);
+        return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(submitted)));
+    }
+
     @GetMapping("/prefill")
     @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<PrefillData>> prefill(@AuthenticationPrincipal UserDetails currentUser) {

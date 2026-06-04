@@ -106,3 +106,7 @@ export async function updateDeclaration(id: number, request: UpdateDeclarationRe
 export async function deleteDeclaration(id: number): Promise<void> {
   await apiDelete(`/declarations/${id}`);
 }
+
+export async function submitDeclaration(id: number): Promise<DeclarationDto> {
+  return apiPost<DeclarationDto>(`/declarations/${id}/submit`);
+}
