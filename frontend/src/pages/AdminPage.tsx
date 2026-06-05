@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { listUsers, createUser, deactivateUser, type CreateUserRequest } from '@/api/users';
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
+import { getAllDocumentTypes, createDocumentType, updateDocumentType, deleteDocumentType, type DocumentTypeDto } from '@/api/documentTypes';
 import type { UserDto, PaginationInfo } from '@/types';
 
 const roleBadge: Record<string, string> = {
@@ -12,6 +13,10 @@ const roleBadge: Record<string, string> = {
 };
 
 export default function AdminPage() {
+  // Tab navigation
+  const [activeTab, setActiveTab] = useState<'users' | 'document-types'>('users');
+
+  // Users state
   const [users, setUsers] = useState<UserDto[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [search, setSearch] = useState('');
@@ -36,6 +41,15 @@ export default function AdminPage() {
   });
   const [creating, setCreating] = useState(false);
 
+  // Document types state
+  const [docTypes, setDocTypes] = useState<DocumentTypeDto[]>([]);
+  const [docTypesLoading, setDocTypesLoading] = useState(true);
+  const [showCreateDocType, setShowCreateDocType] = useState(false);
+  const [docTypeForm, setDocTypeForm] = useState({ code: '', name: '', description: '' });
+  const [docTypeCreating, setDocTypeCreating] = useState(false);
+  const [editingDocType, setEditingDocType] = useState<DocumentTypeDto | null>(null);
+  const [editDocTypeForm, setEditDocTypeForm] = useState({ code: '', name: '', description: '', active: true });
+
   const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
@@ -52,6 +66,18 @@ export default function AdminPage() {
       if (!signal?.aborted) setError('Failed to load users');
     } finally {
       if (!signal?.aborted) setLoading(false);
+    }
+  };
+
+  const fetchDocTypes = async () => {
+    setDocTypesLoading(true);
+    try {
+      const data = await getAllDocumentTypes();
+      setDocTypes(data);
+    } catch {
+      setError('Failed to load document types');
+    } finally {
+      setDocTypesLoading(false);
     }
   };
 
@@ -72,6 +98,12 @@ export default function AdminPage() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'document-types') {
+      fetchDocTypes();
+    }
+  }, [activeTab]);
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -120,6 +152,58 @@ export default function AdminPage() {
     }
   };
 
+  // Document type handlers
+  const handleCreateDocType = async (e: FormEvent) => {
+    e.preventDefault();
+    setDocTypeCreating(true);
+    setError('');
+    setSuccess('');
+    try {
+      await createDocumentType(docTypeForm);
+      setSuccess(`Document type "${docTypeForm.name}" created`);
+      setShowCreateDocType(false);
+      setDocTypeForm({ code: '', name: '', description: '' });
+      fetchDocTypes();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create document type');
+    } finally {
+      setDocTypeCreating(false);
+    }
+  };
+
+  const handleEditDocType = (dt: DocumentTypeDto) => {
+    setEditingDocType(dt);
+    setEditDocTypeForm({ code: dt.code, name: dt.name, description: dt.description || '', active: dt.active });
+  };
+
+  const handleUpdateDocType = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingDocType) return;
+    setError('');
+    setSuccess('');
+    try {
+      await updateDocumentType(editingDocType.id, editDocTypeForm);
+      setSuccess(`Document type "${editDocTypeForm.name}" updated`);
+      setEditingDocType(null);
+      fetchDocTypes();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update document type');
+    }
+  };
+
+  const handleDeleteDocType = async (dt: DocumentTypeDto) => {
+    if (!confirm(`Deactivate document type "${dt.name}"?`)) return;
+    setError('');
+    setSuccess('');
+    try {
+      await deleteDocumentType(dt.id);
+      setSuccess(`Document type "${dt.name}" deactivated`);
+      fetchDocTypes();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to deactivate document type');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface">
       <header className="bg-white border-b border-gray-200 px-6 py-3">
@@ -140,186 +224,343 @@ export default function AdminPage() {
           <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3">{success}</div>
         )}
 
-        {/* Actions bar */}
-        <div className="flex items-center justify-between gap-4">
-          <form onSubmit={handleSearch} className="flex items-center gap-3 flex-1">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search users..."
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-64"
-            />
-            <select
-              value={roleFilter}
-              onChange={(e) => { setRoleFilter(e.target.value); setPage(0); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="">All roles</option>
-              <option value="ADMIN">Admin</option>
-              <option value="DECLARANT">Declarant</option>
-              <option value="CONTROLLER">Controller</option>
-            </select>
-            <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
-              Search
-            </button>
-          </form>
+        {/* Tab navigation */}
+        <div className="flex border-b border-gray-200">
           <button
-            onClick={() => setShowCreate(!showCreate)}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
+            onClick={() => setActiveTab('users')}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'users' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
           >
-            {showCreate ? 'Cancel' : '+ Create User'}
+            Users
+          </button>
+          <button
+            onClick={() => setActiveTab('document-types')}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'document-types' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Document Types
           </button>
         </div>
 
-        {/* Create user form */}
-        {showCreate && (
-          <form onSubmit={handleCreate} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Create New User</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
-                <input type="text" required value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input type="email" required value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
-                <input type="text" required value={form.firstName}
-                  onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
-                <input type="text" required value={form.lastName}
-                  onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                <input type="password" required value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                <select value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value as 'DECLARANT' | 'CONTROLLER' })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+        {/* Users tab */}
+        {activeTab === 'users' && (
+          <>
+            <div className="flex items-center justify-between gap-4">
+              <form onSubmit={handleSearch} className="flex items-center gap-3 flex-1">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search users..."
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 w-64"
+                />
+                <select
+                  value={roleFilter}
+                  onChange={(e) => { setRoleFilter(e.target.value); setPage(0); }}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">All roles</option>
+                  <option value="ADMIN">Admin</option>
                   <option value="DECLARANT">Declarant</option>
                   <option value="CONTROLLER">Controller</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company ID {form.role === 'DECLARANT' ? '*' : '(optional)'}</label>
-                <input type="number" value={form.companyId}
-                  onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                  placeholder={form.role === 'DECLARANT' ? 'Required for declarants' : 'Not needed for controllers'}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-              </div>
-              {form.role === 'CONTROLLER' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office *</label>
-                  <select value={form.customsOfficeId}
-                    onChange={(e) => setForm({ ...form, customsOfficeId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-                    <option value="">Select office...</option>
-                    {customsOffices.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                  </select>
+                <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
+                  Search
+                </button>
+              </form>
+              <button
+                onClick={() => setShowCreate(!showCreate)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
+              >
+                {showCreate ? 'Cancel' : '+ Create User'}
+              </button>
+            </div>
+
+            {showCreate && (
+              <form onSubmit={handleCreate} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                <h2 className="font-semibold text-gray-900">Create New User</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                    <input type="text" required value={form.username}
+                      onChange={(e) => setForm({ ...form, username: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input type="email" required value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                    <input type="text" required value={form.firstName}
+                      onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                    <input type="text" required value={form.lastName}
+                      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                    <input type="password" required value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                    <select value={form.role}
+                      onChange={(e) => setForm({ ...form, role: e.target.value as 'DECLARANT' | 'CONTROLLER' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="DECLARANT">Declarant</option>
+                      <option value="CONTROLLER">Controller</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Company ID {form.role === 'DECLARANT' ? '*' : '(optional)'}</label>
+                    <input type="number" value={form.companyId}
+                      onChange={(e) => setForm({ ...form, companyId: e.target.value })}
+                      placeholder={form.role === 'DECLARANT' ? 'Required for declarants' : 'Not needed for controllers'}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  {form.role === 'CONTROLLER' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office *</label>
+                      <select value={form.customsOfficeId}
+                        onChange={(e) => setForm({ ...form, customsOfficeId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        <option value="">Select office...</option>
+                        {customsOffices.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                      </select>
+                    </div>
+                  )}
                 </div>
-              )}
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setShowCreate(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={creating}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                    {creating ? 'Creating...' : 'Create User'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Name</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Username</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Email</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Role</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Company / Office</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                  ) : users.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No users found</td></tr>
+                  ) : users.map((user) => (
+                    <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{user.firstName} {user.lastName}</td>
+                      <td className="px-4 py-3 text-gray-600">{user.username}</td>
+                      <td className="px-4 py-3 text-gray-600">{user.email}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${roleBadge[user.role] || 'bg-gray-100 text-gray-600'}`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {user.role === 'CONTROLLER' ? (user.customsOfficeName || '—') : (user.companyName || '—')}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block w-2 h-2 rounded-full ${user.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {user.active && user.role !== 'ADMIN' && (
+                          <button
+                            onClick={() => handleDeactivate(user)}
+                            className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
+                          >
+                            Deactivate
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="flex justify-end gap-3 pt-2">
-              <button type="button" onClick={() => setShowCreate(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                Cancel
-              </button>
-              <button type="submit" disabled={creating}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors">
-                {creating ? 'Creating...' : 'Create User'}
-              </button>
-            </div>
-          </form>
+
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>Showing page {pagination.page + 1} of {pagination.totalPages} ({pagination.total} total)</span>
+                <div className="flex gap-2">
+                  <button
+                    disabled={page === 0}
+                    onClick={() => setPage(page - 1)}
+                    className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={page >= pagination.totalPages - 1}
+                    onClick={() => setPage(page + 1)}
+                    className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-        {/* Users table */}
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 font-medium text-gray-700">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">Username</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">Role</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">Company / Office</th>
-                <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading...</td></tr>
-              ) : users.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">No users found</td></tr>
-              ) : users.map((user) => (
-                <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{user.firstName} {user.lastName}</td>
-                  <td className="px-4 py-3 text-gray-600">{user.username}</td>
-                  <td className="px-4 py-3 text-gray-600">{user.email}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${roleBadge[user.role] || 'bg-gray-100 text-gray-600'}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {user.role === 'CONTROLLER' ? (user.customsOfficeName || '—') : (user.companyName || '—')}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`inline-block w-2 h-2 rounded-full ${user.active ? 'bg-green-500' : 'bg-red-500'}`} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {user.active && user.role !== 'ADMIN' && (
-                      <button
-                        onClick={() => handleDeactivate(user)}
-                        className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors"
-                      >
-                        Deactivate
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {pagination && pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>Showing page {pagination.page + 1} of {pagination.totalPages} ({pagination.total} total)</span>
-            <div className="flex gap-2">
+        {/* Document Types tab */}
+        {activeTab === 'document-types' && (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Manage document types available for declaration attachments.</p>
               <button
-                disabled={page === 0}
-                onClick={() => setPage(page - 1)}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50"
+                onClick={() => { setShowCreateDocType(!showCreateDocType); setEditingDocType(null); }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
               >
-                Previous
-              </button>
-              <button
-                disabled={page >= pagination.totalPages - 1}
-                onClick={() => setPage(page + 1)}
-                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 hover:bg-gray-50"
-              >
-                Next
+                {showCreateDocType ? 'Cancel' : '+ Add Document Type'}
               </button>
             </div>
-          </div>
+
+            {showCreateDocType && (
+              <form onSubmit={handleCreateDocType} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                <h2 className="font-semibold text-gray-900">Add Document Type</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
+                    <input type="text" required value={docTypeForm.code}
+                      onChange={(e) => setDocTypeForm({ ...docTypeForm, code: e.target.value.toUpperCase() })}
+                      placeholder="e.g. BILL_OF_LADING"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <input type="text" required value={docTypeForm.name}
+                      onChange={(e) => setDocTypeForm({ ...docTypeForm, name: e.target.value })}
+                      placeholder="e.g. Bill of Lading"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <input type="text" value={docTypeForm.description}
+                      onChange={(e) => setDocTypeForm({ ...docTypeForm, description: e.target.value })}
+                      placeholder="Optional description"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="submit" disabled={docTypeCreating}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                    {docTypeCreating ? 'Creating...' : 'Create'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {editingDocType && (
+              <form onSubmit={handleUpdateDocType} className="bg-amber-50 border border-amber-200 rounded-lg p-6 space-y-4">
+                <h2 className="font-semibold text-amber-900">Edit Document Type</h2>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
+                    <input type="text" required value={editDocTypeForm.code}
+                      onChange={(e) => setEditDocTypeForm({ ...editDocTypeForm, code: e.target.value.toUpperCase() })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <input type="text" required value={editDocTypeForm.name}
+                      onChange={(e) => setEditDocTypeForm({ ...editDocTypeForm, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <input type="text" value={editDocTypeForm.description}
+                      onChange={(e) => setEditDocTypeForm({ ...editDocTypeForm, description: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={editDocTypeForm.active}
+                        onChange={(e) => setEditDocTypeForm({ ...editDocTypeForm, active: e.target.checked })}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      <span className="text-sm text-gray-700">Active</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setEditingDocType(null)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                  </button>
+                  <button type="submit"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                    Save
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Code</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Name</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Description</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {docTypesLoading ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                  ) : docTypes.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-8 text-gray-400">No document types found</td></tr>
+                  ) : docTypes.map((dt) => (
+                    <tr key={dt.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-mono text-xs text-gray-600">{dt.code}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{dt.name}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{dt.description || '—'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block w-2 h-2 rounded-full ${dt.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                      </td>
+                      <td className="px-4 py-3 text-right space-x-2">
+                        <button onClick={() => { setEditingDocType(dt); setShowCreateDocType(false); }}
+                          className="text-xs px-2 py-1 bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition-colors">
+                          Edit
+                        </button>
+                        {dt.active && (
+                          <button onClick={() => handleDeleteDocType(dt)}
+                            className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
+                            Deactivate
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </main>
     </div>

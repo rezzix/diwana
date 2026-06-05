@@ -37,7 +37,7 @@ public class DeclarationAttachmentService {
 
     @Transactional
     public DeclarationAttachment upload(Long declarationId, MultipartFile file,
-                                         DeclarationAttachment.DocType docType, Long userId) {
+                                         String docType, Long userId) {
         Declaration declaration = declarationService.getById(declarationId);
 
         if (file.getSize() > MAX_FILE_SIZE) {
@@ -93,7 +93,7 @@ public class DeclarationAttachmentService {
 
     @Transactional
     public DeclarationAttachment replace(Long declarationId, Long attachmentId,
-                                         MultipartFile file, DeclarationAttachment.DocType docType, Long userId) {
+                                         MultipartFile file, String docType, Long userId) {
         Declaration declaration = declarationService.getById(declarationId);
         if (declaration.getStatus() != Declaration.Status.DRAFT) {
             throw new IllegalArgumentException("Can only replace attachments on draft declarations");
@@ -127,7 +127,9 @@ public class DeclarationAttachmentService {
         }
 
         // Update attachment record
-        attachment.setDocType(docType);
+        if (docType != null && !docType.isBlank()) {
+            attachment.setDocType(docType);
+        }
         attachment.setFileName(file.getOriginalFilename());
         attachment.setFilePath(storedPath);
         attachment.setContentType(contentType);

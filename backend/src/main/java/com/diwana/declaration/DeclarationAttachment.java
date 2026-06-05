@@ -9,8 +9,6 @@ import java.time.Instant;
 @Table(name = "declaration_attachment")
 public class DeclarationAttachment {
 
-    public enum DocType { COMMERCIAL_INVOICE, PACKING_LIST, CERTIFICATE_OF_ORIGIN, OTHER }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,9 +17,8 @@ public class DeclarationAttachment {
     @JoinColumn(name = "declaration_id", nullable = false)
     private Declaration declaration;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "doc_type", nullable = false)
-    private DocType docType;
+    @Column(name = "doc_type", nullable = false, length = 50)
+    private String docType;
 
     @Column(name = "file_name", nullable = false)
     private String fileName;
@@ -48,8 +45,8 @@ public class DeclarationAttachment {
     public void setId(Long id) { this.id = id; }
     public Declaration getDeclaration() { return declaration; }
     public void setDeclaration(Declaration declaration) { this.declaration = declaration; }
-    public DocType getDocType() { return docType; }
-    public void setDocType(DocType docType) { this.docType = docType; }
+    public String getDocType() { return docType; }
+    public void setDocType(String docType) { this.docType = docType; }
     public String getFileName() { return fileName; }
     public void setFileName(String fileName) { this.fileName = fileName; }
     public String getFilePath() { return filePath; }
