@@ -230,6 +230,33 @@ export default function EditDeclarationPage() {
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Compact summary: company + customs info */}
+          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            {company && (
+              <>
+                <span className="text-gray-500">Company:</span>
+                <span className="font-medium text-gray-900">{company.name}</span>
+                {company.ice && (
+                  <>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-gray-500">ICE:</span>
+                    <span className="text-gray-700">{company.ice}</span>
+                  </>
+                )}
+              </>
+            )}
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">Customs Office:</span>
+            <span className="font-medium text-gray-900">{customsOffice}</span>
+            {notes && (
+              <>
+                <span className="text-gray-300">|</span>
+                <span className="text-gray-500">Notes:</span>
+                <span className="text-gray-700">{notes}</span>
+              </>
+            )}
+          </div>
+
           {/* Supporting Documents */}
           <SupportingDocumentsSection
             declarationId={Number(id)}
@@ -388,32 +415,6 @@ export default function EditDeclarationPage() {
               <p className="mt-2 text-xs text-amber-600">These are indicative estimates based on current tariff rates. Final amounts are determined upon customs review.</p>
             </section>
           )}
-
-          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-            {company && (
-              <>
-                <span className="text-gray-500">Company:</span>
-                <span className="font-medium text-gray-900">{company.name}</span>
-                {company.ice && (
-                  <>
-                    <span className="text-gray-300">|</span>
-                    <span className="text-gray-500">ICE:</span>
-                    <span className="text-gray-700">{company.ice}</span>
-                  </>
-                )}
-              </>
-            )}
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-500">Customs Office:</span>
-            <span className="font-medium text-gray-900">{customsOffice}</span>
-            {notes && (
-              <>
-                <span className="text-gray-300">|</span>
-                <span className="text-gray-500">Notes:</span>
-                <span className="text-gray-700">{notes}</span>
-              </>
-            )}
-          </div>
 
           <div className="flex justify-end gap-3">
             <Link to={`/declarations/${id}`}
