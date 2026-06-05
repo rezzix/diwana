@@ -56,6 +56,11 @@ export default function CreateDeclarationPage() {
     }
   }, [createdId]);
 
+  const mandatoryDocTypes = docTypes.filter((dt) => dt.mandatoryFor);
+  const mandatoryDocsUploaded = createdId
+    ? mandatoryDocTypes.every((dt) => attachments.some((att) => att.docType === dt.code))
+    : false;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!customsOffice) {
@@ -259,8 +264,8 @@ export default function CreateDeclarationPage() {
 
             <div className="flex justify-end gap-3">
               <Link to="/declarations" className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Back to Declarations</Link>
-              <Link to={`/declarations/${createdId}/edit`}
-                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+              <Link to={mandatoryDocsUploaded ? `/declarations/${createdId}/edit` : '#'}
+                className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors ${mandatoryDocsUploaded ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
                 Add Goods Lines
               </Link>
             </div>
