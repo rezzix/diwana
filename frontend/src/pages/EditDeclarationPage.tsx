@@ -39,6 +39,7 @@ export default function EditDeclarationPage() {
   const [lineForm, setLineForm] = useState<LineForm>(emptyLine());
   const [customsOffice, setCustomsOffice] = useState('');
   const [notes, setNotes] = useState('');
+  const [company, setCompany] = useState<{ name: string; ice: string | null } | null>(null);
 
   // Supporting documents state
   const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
@@ -56,6 +57,7 @@ export default function EditDeclarationPage() {
         setOrigins(originData);
         setTariffRates(prefillData.tariffRates);
         setCustomsOffices(officeData);
+        setCompany(prefillData.company ? { name: prefillData.company.name, ice: prefillData.company.ice } : null);
       }).catch((err) => {
         if (axios.isCancel(err)) return;
       });
@@ -388,7 +390,14 @@ export default function EditDeclarationPage() {
           )}
 
           <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Customs Information</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Customs Information</h2>
+              {company && (
+                <span className="text-xs text-gray-500">
+                  {company.name}{company.ice ? ` (ICE: ${company.ice})` : ''}
+                </span>
+              )}
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
