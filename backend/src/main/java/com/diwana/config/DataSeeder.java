@@ -4,6 +4,8 @@ import com.diwana.company.Company;
 import com.diwana.company.CompanyRepository;
 import com.diwana.customsoffice.CustomsOffice;
 import com.diwana.customsoffice.CustomsOfficeRepository;
+import com.diwana.documenttype.DocumentType;
+import com.diwana.documenttype.DocumentTypeRepository;
 import com.diwana.origin.Origin;
 import com.diwana.origin.OriginRepository;
 import com.diwana.tariff.TariffRate;
@@ -32,19 +34,22 @@ public class DataSeeder implements CommandLineRunner {
     private final TariffRateRepository tariffRateRepository;
     private final OriginRepository originRepository;
     private final CustomsOfficeRepository customsOfficeRepository;
+    private final DocumentTypeRepository documentTypeRepository;
 
     public DataSeeder(PasswordEncoder passwordEncoder,
                       UserRepository userRepository,
                       CompanyRepository companyRepository,
                       TariffRateRepository tariffRateRepository,
                       OriginRepository originRepository,
-                      CustomsOfficeRepository customsOfficeRepository) {
+                      CustomsOfficeRepository customsOfficeRepository,
+                      DocumentTypeRepository documentTypeRepository) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
         this.tariffRateRepository = tariffRateRepository;
         this.originRepository = originRepository;
         this.customsOfficeRepository = customsOfficeRepository;
+        this.documentTypeRepository = documentTypeRepository;
     }
 
     @Override
@@ -56,6 +61,7 @@ public class DataSeeder implements CommandLineRunner {
         seedCompanies();
         seedOrigins();
         seedCustomsOffices();
+        seedDocumentTypes();
         seedTariffRates();
         seedUsers();
     }
@@ -121,6 +127,29 @@ public class DataSeeder implements CommandLineRunner {
         );
 
         customsOfficeRepository.saveAll(offices);
+    }
+
+    // ---- Document Types ----
+
+    private void seedDocumentTypes() {
+        if (documentTypeRepository.count() > 0) return;
+
+        List<DocumentType> docTypes = List.of(
+            createDocType("COMMERCIAL_INVOICE", "Commercial Invoice", "Invoice from the supplier for goods purchased"),
+            createDocType("CERTIFICATE_OF_ORIGIN", "Certificate of Origin", "Certifies the country where goods were manufactured"),
+            createDocType("PACKING_LIST", "Packing List", "Detailed list of items in each package/shipment")
+        );
+
+        documentTypeRepository.saveAll(docTypes);
+    }
+
+    private DocumentType createDocType(String code, String name, String description) {
+        DocumentType docType = new DocumentType();
+        docType.setCode(code);
+        docType.setName(name);
+        docType.setDescription(description);
+        docType.setActive(true);
+        return docType;
     }
 
     // ---- Tariff Rates ----

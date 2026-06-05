@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, getAuditLog, type DeclarationDto, type AuditLogDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
+import { getDocumentTypes, type DocumentTypeDto } from '@/api/documentTypes';
 import { useAuthStore } from '@/stores/authStore';
 
 function DocumentViewer({ attachment, declarationId, onClose }: {
@@ -53,6 +54,7 @@ export default function DeclarationDetailPage() {
   const [uploadType, setUploadType] = useState('COMMERCIAL_INVOICE');
   const [uploading, setUploading] = useState(false);
   const [viewingAttachment, setViewingAttachment] = useState<AttachmentDto | null>(null);
+  const [docTypes, setDocTypes] = useState<DocumentTypeDto[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [resubmitting, setResubmitting] = useState(false);
   const [rejecting, setRejecting] = useState(false);
@@ -85,6 +87,10 @@ export default function DeclarationDetailPage() {
   };
 
   useEffect(() => { fetchData(); }, [id]);
+
+  useEffect(() => {
+    getDocumentTypes().then(setDocTypes).catch(() => {});
+  }, []);
 
   const ALLOWED_FILE_TYPES = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.tif'];
   const ALLOWED_MIME_PREFIXES = ['application/pdf', 'image/'];
@@ -287,12 +293,9 @@ export default function DeclarationDetailPage() {
     return <div className="min-h-screen bg-surface p-6 text-center text-gray-500">Declaration not found.</div>;
   }
 
-  const docTypeLabels: Record<string, string> = {
-    COMMERCIAL_INVOICE: 'Commercial Invoice',
-    PACKING_LIST: 'Packing List',
-    CERTIFICATE_OF_ORIGIN: 'Certificate of Origin',
-    OTHER: 'Other',
-  };
+  const docTypeLabels: Record<string, string> = Object.fromEntries(
+    docTypes.map((dt) => [dt.code, dt.name])
+  );
 
   return (
     <div className="min-h-screen bg-surface">
@@ -465,37 +468,6 @@ export default function DeclarationDetailPage() {
           {decl.notes && <div className="mt-3 text-sm text-gray-600"><span className="text-gray-500 block">Notes:</span>{decl.notes}</div>}
         </section>
 
-        {/* Line Items */}
-        <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="font-semibold text-gray-900">Goods Lines ({decl.lineItems.length})</h2>
-          </div>
-          <table className="w-full text-sm">
-            <thead><tr className="bg-gray-50 border-b border-gray-200">
-              <th className="text-left px-4 py-2 font-medium text-gray-700">HS Code</th>
-              <th className="text-left px-4 py-2 font-medium text-gray-700">Description</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-700">Qty</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-700">Unit Price</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-700">Total</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-700">Duty</th>
-              <th className="text-right px-4 py-2 font-medium text-gray-700">VAT</th>
-            </tr></thead>
-            <tbody>
-              {decl.lineItems.map((li, i) => (
-                <tr key={i} className="border-b border-gray-100">
-                  <td className="px-4 py-2 font-mono text-xs">{li.hsCode}</td>
-                  <td className="px-4 py-2">{li.description}</td>
-                  <td className="px-4 py-2 text-right">{li.quantity}</td>
-                  <td className="px-4 py-2 text-right">{li.unitPrice.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">{li.totalValue.toFixed(2)}</td>
-                  <td className="px-4 py-2 text-right">{li.dutyAmount?.toFixed(2) || '—'}</td>
-                  <td className="px-4 py-2 text-right">{li.vatAmount?.toFixed(2) || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-
         {/* Documents */}
         <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
@@ -513,7 +485,7 @@ export default function DeclarationDetailPage() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">Document Type</label>
                   <select value={uploadType} onChange={(e) => setUploadType(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    {Object.entries(docTypeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {docTypes.map((dt) => <option key={dt.code} value={dt.code}>{dt.name}</option>)}
                   </select>
                 </div>
                 <div className="flex-1">
@@ -580,6 +552,37 @@ export default function DeclarationDetailPage() {
               </tbody>
             </table>
           )}
+        </section>
+
+        {/* Line Items */}
+        <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <h2 className="font-semibold text-gray-900">Goods Lines ({decl.lineItems.length})</h2>
+          </div>
+          <table className="w-full text-sm">
+            <thead><tr className="bg-gray-50 border-b border-gray-200">
+              <th className="text-left px-4 py-2 font-medium text-gray-700">HS Code</th>
+              <th className="text-left px-4 py-2 font-medium text-gray-700">Description</th>
+              <th className="text-right px-4 py-2 font-medium text-gray-700">Qty</th>
+              <th className="text-right px-4 py-2 font-medium text-gray-700">Unit Price</th>
+              <th className="text-right px-4 py-2 font-medium text-gray-700">Total</th>
+              <th className="text-right px-4 py-2 font-medium text-gray-700">Duty</th>
+              <th className="text-right px-4 py-2 font-medium text-gray-700">VAT</th>
+            </tr></thead>
+            <tbody>
+              {decl.lineItems.map((li, i) => (
+                <tr key={i} className="border-b border-gray-100">
+                  <td className="px-4 py-2 font-mono text-xs">{li.hsCode}</td>
+                  <td className="px-4 py-2">{li.description}</td>
+                  <td className="px-4 py-2 text-right">{li.quantity}</td>
+                  <td className="px-4 py-2 text-right">{li.unitPrice.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">{li.totalValue.toFixed(2)}</td>
+                  <td className="px-4 py-2 text-right">{li.dutyAmount?.toFixed(2) || '—'}</td>
+                  <td className="px-4 py-2 text-right">{li.vatAmount?.toFixed(2) || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </section>
 
         {/* Audit Trail */}

@@ -33,7 +33,7 @@ public class DeclarationAttachmentController {
     @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<List<AttachmentDto>>> list(@PathVariable Long declarationId) {
         List<AttachmentDto> attachments = attachmentService.getByDeclarationId(declarationId).stream()
-                .map(a -> new AttachmentDto(a.getId(), a.getDocType().name(), a.getFileName(),
+                .map(a -> new AttachmentDto(a.getId(), a.getDocType(), a.getFileName(),
                         a.getContentType(), a.getFileSize(), a.getCreatedAt().toString()))
                 .toList();
         return ResponseEntity.ok(ApiResponse.of(attachments));
@@ -47,15 +47,12 @@ public class DeclarationAttachmentController {
             @RequestParam("docType") String docType,
             @AuthenticationPrincipal UserDetails currentUser) {
         Long userId = authHelper.getCurrentUserId(currentUser);
-        DeclarationAttachment.DocType type;
-        try {
-            type = DeclarationAttachment.DocType.valueOf(docType);
-        } catch (IllegalArgumentException e) {
+        if (docType == null || docType.isBlank()) {
             return ResponseEntity.badRequest().body(ApiResponse.of(null));
         }
-        DeclarationAttachment attachment = attachmentService.upload(declarationId, file, type, userId);
+        DeclarationAttachment attachment = attachmentService.upload(declarationId, file, docType, userId);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(
-                new AttachmentDto(attachment.getId(), attachment.getDocType().name(),
+                new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
                         attachment.getFileSize(), attachment.getCreatedAt().toString())
         ));
@@ -77,20 +74,9 @@ public class DeclarationAttachmentController {
             @RequestParam(value = "docType", required = false) String docType,
             @AuthenticationPrincipal UserDetails currentUser) {
         Long userId = authHelper.getCurrentUserId(currentUser);
-        DeclarationAttachment existing = attachmentService.getById(attachmentId);
-        DeclarationAttachment.DocType type;
-        if (docType != null && !docType.isBlank()) {
-            try {
-                type = DeclarationAttachment.DocType.valueOf(docType);
-            } catch (IllegalArgumentException e) {
-                return ResponseEntity.badRequest().body(ApiResponse.of(null));
-            }
-        } else {
-            type = existing.getDocType();
-        }
-        DeclarationAttachment attachment = attachmentService.replace(declarationId, attachmentId, file, type, userId);
+        DeclarationAttachment attachment = attachmentService.replace(declarationId, attachmentId, file, docType, userId);
         return ResponseEntity.ok(ApiResponse.of(
-                new AttachmentDto(attachment.getId(), attachment.getDocType().name(),
+                new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
                         attachment.getFileSize(), attachment.getCreatedAt().toString())
         ));
