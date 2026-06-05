@@ -72,6 +72,109 @@ interface SupportingDocumentsSectionProps {
   setError?: (error: string) => void;
 }
 
+function MandatoryDocRow({ docType, existingAttachment, uploading, canEdit, onUpload, onReplace, onDelete, declarationId, setViewingAttachment, setError }: {
+  docType: DocumentTypeDto;
+  existingAttachment: AttachmentDto | undefined;
+  uploading: boolean;
+  canEdit: boolean;
+  onUpload: (formData: FormData) => Promise<void>;
+  onReplace: (attachmentId: number, file: File) => Promise<void>;
+  onDelete: (attachmentId: number) => Promise<void>;
+  declarationId: number;
+  setViewingAttachment: (att: AttachmentDto) => void;
+  setError?: (error: string) => void;
+}) {
+  const handleMandatoryUpload = async (e: FormEvent) => {
+    e.preventDefault();
+    const fileInput = document.getElementById(`mandatory-file-${docType.code}`) as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+    if (!file) return;
+    if (!validateFileType(file)) {
+      setError?.('Only PDF and image files (JPEG, PNG, TIFF) are allowed');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('docType', docType.code);
+    await onUpload(formData);
+    fileInput.value = '';
+  };
+
+  const triggerReplace = (attId: number) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,image/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) {
+        if (!validateFileType(file)) {
+          setError?.('Only PDF and image files (JPEG, PNG, TIFF) are allowed');
+          return;
+        }
+        onReplace(attId, file);
+      }
+    };
+    input.click();
+  };
+
+  if (existingAttachment) {
+    return (
+      <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-3 text-sm">
+        <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-amber-100 text-amber-700 whitespace-nowrap">
+          {formatMandatoryFor(docType.mandatoryFor)}
+        </span>
+        <span className="font-medium text-gray-700 min-w-[120px]">{docType.name}</span>
+        <button onClick={() => setViewingAttachment(existingAttachment)}
+          className="text-primary-600 hover:underline font-medium truncate">
+          {existingAttachment.fileName}
+        </button>
+        <span className="text-gray-400 text-xs">{formatSize(existingAttachment.fileSize)}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <a href={getAttachmentDownloadUrl(declarationId, existingAttachment.id)}
+            className="text-xs px-2 py-1 bg-gray-50 text-primary-600 rounded hover:bg-gray-100 transition-colors">
+            Download
+          </a>
+          {canEdit && (
+            <button onClick={() => triggerReplace(existingAttachment.id)}
+              className="text-xs px-2 py-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-100 transition-colors">
+              Replace
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!canEdit) {
+    return (
+      <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-3 text-sm">
+        <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-amber-100 text-amber-700 whitespace-nowrap">
+          {formatMandatoryFor(docType.mandatoryFor)}
+        </span>
+        <span className="font-medium text-gray-700">{docType.name}</span>
+        <span className="text-gray-400 italic">Not uploaded</span>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleMandatoryUpload} className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-3 text-sm">
+      <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-amber-100 text-amber-700 whitespace-nowrap">
+        {formatMandatoryFor(docType.mandatoryFor)}
+      </span>
+      <span className="font-medium text-gray-700 min-w-[120px]">{docType.name}</span>
+      <div className="flex-1">
+        <input id={`mandatory-file-${docType.code}`} type="file" accept=".pdf,image/*"
+          className="w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+      </div>
+      <button type="submit" disabled={uploading}
+        className="px-3 py-1.5 bg-primary-600 text-white rounded-lg text-xs hover:bg-primary-700 disabled:opacity-50 transition-colors whitespace-nowrap">
+        {uploading ? 'Uploading...' : 'Upload'}
+      </button>
+    </form>
+  );
+}
+
 export default function SupportingDocumentsSection({
   declarationId,
   attachments,
@@ -90,6 +193,23 @@ export default function SupportingDocumentsSection({
 
   const docTypeLabels: Record<string, string> = Object.fromEntries(
     docTypes.map((dt) => [dt.code, dt.name])
+  );
+
+  // Separate mandatory and optional doc types
+  const mandatoryDocTypes = docTypes.filter((dt) => dt.mandatoryFor);
+  const optionalDocTypes = docTypes.filter((dt) => !dt.mandatoryFor);
+
+  // Map attachments by docType for quick lookup
+  const attachmentsByType: Record<string, AttachmentDto> = {};
+  for (const att of attachments) {
+    if (!attachmentsByType[att.docType]) {
+      attachmentsByType[att.docType] = att;
+    }
+  }
+
+  // Non-mandatory attachments (those not matching a mandatory doc type)
+  const nonMandatoryAttachments = attachments.filter(
+    (att) => !mandatoryDocTypes.some((dt) => dt.code === att.docType)
   );
 
   const handleUpload = async (e: FormEvent) => {
@@ -148,6 +268,24 @@ export default function SupportingDocumentsSection({
           </div>
         </div>
 
+        {/* Mandatory document rows — one per mandatory doc type */}
+        {mandatoryDocTypes.length > 0 && mandatoryDocTypes.map((dt) => (
+          <MandatoryDocRow
+            key={dt.code}
+            docType={dt}
+            existingAttachment={attachmentsByType[dt.code]}
+            uploading={uploading}
+            canEdit={canEdit}
+            onUpload={onUpload}
+            onReplace={onReplace}
+            onDelete={onDelete}
+            declarationId={declarationId}
+            setViewingAttachment={setViewingAttachment}
+            setError={setError}
+          />
+        ))}
+
+        {/* Optional document upload form */}
         {canEdit && (
           <form onSubmit={handleUpload} className="p-4 border-b border-gray-200 bg-gray-50/50">
             <div className="flex items-end gap-3">
@@ -155,7 +293,7 @@ export default function SupportingDocumentsSection({
                 <label className="block text-xs font-medium text-gray-700 mb-1">Document Type</label>
                 <select value={uploadType} onChange={(e) => setUploadType(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  {docTypes.map((dt) => <option key={dt.code} value={dt.code}>{dt.name}{dt.mandatoryFor ? ' *' : ''}</option>)}
+                  {optionalDocTypes.map((dt) => <option key={dt.code} value={dt.code}>{dt.name}</option>)}
                 </select>
               </div>
               <div className="flex-1">
@@ -171,8 +309,11 @@ export default function SupportingDocumentsSection({
           </form>
         )}
 
-        {attachments.length === 0 ? (
-          <div className="p-6 text-center text-sm text-gray-400">No documents attached yet.</div>
+        {/* Other (non-mandatory) attachments table */}
+        {nonMandatoryAttachments.length === 0 ? (
+          mandatoryDocTypes.length === 0 && (
+            <div className="p-6 text-center text-sm text-gray-400">No documents attached yet.</div>
+          )
         ) : (
           <table className="w-full text-sm">
             <thead><tr className="bg-gray-50 border-b border-gray-200">
@@ -183,15 +324,10 @@ export default function SupportingDocumentsSection({
               <th className="text-right px-4 py-2 font-medium text-gray-700">Actions</th>
             </tr></thead>
             <tbody>
-              {attachments.map((att) => (
+              {nonMandatoryAttachments.map((att) => (
                 <tr key={att.id} className="border-b border-gray-100">
                   <td className="px-4 py-2 text-gray-700">
                     {docTypeLabels[att.docType] || att.docType}
-                    {docTypes.find((dt) => dt.code === att.docType)?.mandatoryFor && (
-                      <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">
-                        {formatMandatoryFor(docTypes.find((dt) => dt.code === att.docType)?.mandatoryFor || null)}
-                      </span>
-                    )}
                   </td>
                   <td className="px-4 py-2">
                     <button onClick={() => setViewingAttachment(att)}
