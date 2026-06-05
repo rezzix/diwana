@@ -40,7 +40,7 @@ public record DeclarationDto(
     ) {}
 
     public record CreateRequest(
-            @NotNull @Size(min = 1) @Valid List<LineItemRequest> lineItems,
+            @NotNull @Valid List<LineItemRequest> lineItems,
             @NotBlank(message = "Customs office is required") String customsOffice,
             String notes
     ) {}

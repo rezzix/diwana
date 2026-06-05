@@ -11,6 +11,7 @@ import CreateDeclarationPage from '@/pages/CreateDeclarationPage';
 import EditDeclarationPage from '@/pages/EditDeclarationPage';
 import DeclarationDetailPage from '@/pages/DeclarationDetailPage';
 import ControlDeskPage from '@/pages/ControlDeskPage';
+import TariffRatesPage from '@/pages/TariffRatesPage';
 import AuthGuard from '@/components/guards/AuthGuard';
 import AdminGuard from '@/components/guards/AdminGuard';
 import RoleGuard from '@/components/guards/RoleGuard';
@@ -173,6 +174,15 @@ function HomePage() {
               <p className="text-sm text-gray-500 mt-1">Create and manage customs declarations</p>
             </Link>
           )}
+          {(role === 'DECLARANT' || role === 'CONTROLLER') && (
+            <Link
+              to="/tariff-rates"
+              className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+            >
+              <h2 className="font-semibold text-gray-900">Reference Tariff Rates</h2>
+              <p className="text-sm text-gray-500 mt-1">Browse duty and VAT rates by HS code and origin</p>
+            </Link>
+          )}
           {role === 'CONTROLLER' && (
             <Link
               to="/control"
@@ -265,6 +275,16 @@ function AppRoutes() {
           <AuthGuard>
             <RoleGuard roles={['CONTROLLER']}>
               <ControlDeskPage />
+            </RoleGuard>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/tariff-rates"
+        element={
+          <AuthGuard>
+            <RoleGuard roles={['DECLARANT', 'CONTROLLER']}>
+              <TariffRatesPage />
             </RoleGuard>
           </AuthGuard>
         }

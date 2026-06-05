@@ -247,7 +247,13 @@ export default function EditDeclarationPage() {
 
           {/* Add line */}
           <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Add Goods Line</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Add Goods Line</h2>
+              <Link to="/tariff-rates" target="_blank" rel="noopener noreferrer"
+                className="text-xs text-primary-600 hover:underline">
+                📋 View Reference Tariff Rates
+              </Link>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">HS Code *</label>
