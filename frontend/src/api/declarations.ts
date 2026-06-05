@@ -89,16 +89,20 @@ export interface UpdateDeclarationRequest {
   notes?: string;
 }
 
-export async function getPrefillData(): Promise<PrefillData> {
-  return apiGet<PrefillData>('/declarations/prefill');
+export async function getDeclarations(signal?: AbortSignal): Promise<DeclarationDto[]> {
+  return apiGet<DeclarationDto[]>('/declarations', undefined, signal);
+}
+
+export async function getPrefillData(signal?: AbortSignal): Promise<PrefillData> {
+  return apiGet<PrefillData>('/declarations/prefill', undefined, signal);
 }
 
 export async function createDeclaration(request: CreateDeclarationRequest): Promise<DeclarationDto> {
   return apiPost<DeclarationDto>('/declarations', request);
 }
 
-export async function getDeclaration(id: number): Promise<DeclarationDto> {
-  return apiGet<DeclarationDto>(`/declarations/${id}`);
+export async function getDeclaration(id: number, signal?: AbortSignal): Promise<DeclarationDto> {
+  return apiGet<DeclarationDto>(`/declarations/${id}`, undefined, signal);
 }
 
 export async function updateDeclaration(id: number, request: UpdateDeclarationRequest): Promise<DeclarationDto> {
@@ -109,8 +113,8 @@ export async function deleteDeclaration(id: number): Promise<void> {
   await apiDelete(`/declarations/${id}`);
 }
 
-export async function getPendingReviewDeclarations(): Promise<DeclarationDto[]> {
-  return apiGet<DeclarationDto[]>('/declarations/pending-review');
+export async function getPendingReviewDeclarations(signal?: AbortSignal): Promise<DeclarationDto[]> {
+  return apiGet<DeclarationDto[]>('/declarations/pending-review', undefined, signal);
 }
 
 export async function submitDeclaration(id: number): Promise<DeclarationDto> {
@@ -143,6 +147,6 @@ export interface AuditLogDto {
   createdAt: string;
 }
 
-export async function getAuditLog(declarationId: number): Promise<AuditLogDto[]> {
-  return apiGet<AuditLogDto[]>(`/declarations/${declarationId}/audit-log`);
+export async function getAuditLog(declarationId: number, signal?: AbortSignal): Promise<AuditLogDto[]> {
+  return apiGet<AuditLogDto[]>(`/declarations/${declarationId}/audit-log`, undefined, signal);
 }

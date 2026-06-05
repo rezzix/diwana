@@ -9,8 +9,8 @@ export interface AttachmentDto {
   createdAt: string;
 }
 
-export function getAttachments(declarationId: number): Promise<AttachmentDto[]> {
-  return apiGet<AttachmentDto[]>(`/declarations/${declarationId}/attachments`);
+export function getAttachments(declarationId: number, signal?: AbortSignal): Promise<AttachmentDto[]> {
+  return apiGet<AttachmentDto[]>(`/declarations/${declarationId}/attachments`, undefined, signal);
 }
 
 export function deleteAttachment(declarationId: number, attachmentId: number): Promise<void> {

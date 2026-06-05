@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { deleteDeclaration, type DeclarationDto } from '@/api/declarations';
+import { getDeclarations, deleteDeclaration, type DeclarationDto } from '@/api/declarations';
 import { useAuthStore } from '@/stores/authStore';
+import axios from 'axios';
 
 export default function DeclarationsPage() {
   const user = useAuthStore((s) => s.user);
@@ -9,20 +10,22 @@ export default function DeclarationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const fetchDeclarations = async () => {
-    if (user?.role !== 'DECLARANT') return;
-    try {
-      const res = await fetch('/api/declarations', { credentials: 'include' });
-      const json = await res.json();
-      setDeclarations(json.data || []);
-    } catch {
-      // ignore — prefill data will still load
-    }
-  };
-
   useEffect(() => {
-    fetchDeclarations().finally(() => setLoading(false));
-  }, [user]);
+    if (user?.role !== 'DECLARANT') return;
+    const controller = new AbortController();
+    getDeclarations(controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setDeclarations(data);
+      })
+      .catch((err) => {
+        if (axios.isCancel(err)) return;
+        if (!controller.signal.aborted) setError('Failed to load declarations');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [user?.role]);
 
   const handleDelete = async (id: number, declNumber: string) => {
     if (!confirm(`Delete declaration ${declNumber}? This cannot be undone.`)) return;

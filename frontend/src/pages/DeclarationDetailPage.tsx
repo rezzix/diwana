@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, getAuditLog, type DeclarationDto, type AuditLogDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
 import { getDocumentTypes, type DocumentTypeDto } from '@/api/documentTypes';
@@ -68,25 +69,32 @@ export default function DeclarationDetailPage() {
   const isOwner = user?.role === 'DECLARANT';
   const isController = user?.role === 'CONTROLLER';
 
-  const fetchData = async () => {
+  const fetchData = async (signal?: AbortSignal) => {
     if (!id) return;
     try {
-      const d = await getDeclaration(Number(id));
+      const d = await getDeclaration(Number(id), signal);
+      if (signal?.aborted) return;
       setDecl(d);
       const [atts, logs] = await Promise.all([
-        getAttachments(Number(id)),
-        getAuditLog(Number(id)),
+        getAttachments(Number(id), signal),
+        getAuditLog(Number(id), signal),
       ]);
+      if (signal?.aborted) return;
       setAttachments(atts);
       setAuditLog(logs);
-    } catch {
+    } catch (err) {
+      if (axios.isCancel(err)) return;
       setError('Failed to load declaration');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, [id]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
+  }, [id]);
 
   useEffect(() => {
     getDocumentTypes().then(setDocTypes).catch(() => {});
@@ -391,7 +399,12 @@ export default function DeclarationDetailPage() {
           <section className="bg-red-50 border border-red-200 rounded-lg p-6">
             <h2 className="font-semibold text-red-900 mb-2">Rejection Reason</h2>
             <p className="text-sm text-red-700 whitespace-pre-wrap">{decl.rejectionReason}</p>
-            <p className="mt-3 text-xs text-red-500">You can correct the declaration and resubmit it for review.</p>
+            {isOwner && (
+              <p className="mt-3 text-xs text-red-500">You can correct the declaration and resubmit it for review.</p>
+            )}
+            {isController && (
+              <p className="mt-3 text-xs text-red-500">The declarant has been notified and can correct and resubmit the declaration.</p>
+            )}
           </section>
         )}
 
@@ -400,7 +413,12 @@ export default function DeclarationDetailPage() {
           <section className="bg-purple-50 border border-purple-200 rounded-lg p-6">
             <h2 className="font-semibold text-purple-900 mb-2">Additional Information Requested</h2>
             <p className="text-sm text-purple-700 whitespace-pre-wrap">{decl.infoRequestNote}</p>
-            <p className="mt-3 text-xs text-purple-500">The customs controller has requested additional information. You can edit the declaration to provide it, then resubmit.</p>
+            {isOwner && (
+              <p className="mt-3 text-xs text-purple-500">The customs controller has requested additional information. You can edit the declaration to provide it, then resubmit.</p>
+            )}
+            {isController && (
+              <p className="mt-3 text-xs text-purple-500">This declaration is awaiting the declarant's response.</p>
+            )}
           </section>
         )}
 

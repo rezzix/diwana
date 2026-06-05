@@ -247,50 +247,53 @@ public class DeclarationService {
     }
 
     @Transactional
-    public Declaration reject(Long id, String reason) {
+    public Declaration reject(Long id, String reason, Long userId) {
         Declaration declaration = getById(id);
         if (declaration.getStatus() != Declaration.Status.SUBMITTED
                 && declaration.getStatus() != Declaration.Status.UNDER_REVIEW
                 && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
             throw new BadRequestException("Only submitted, under-review, or info-requested declarations can be rejected");
         }
+        User controller = userService.getById(userId);
         String fromStatus = declaration.getStatus().name();
         declaration.setStatus(Declaration.Status.REJECTED);
         declaration.setRejectionReason(reason);
         declaration.setInfoRequestNote(null);
         Declaration saved = declarationRepository.save(declaration);
-        logAction(saved, DeclarationAuditLog.Action.REJECTED, fromStatus, saved.getStatus().name(), reason, null);
+        logAction(saved, DeclarationAuditLog.Action.REJECTED, fromStatus, saved.getStatus().name(), reason, controller);
         return saved;
     }
 
     @Transactional
-    public Declaration approve(Long id) {
+    public Declaration approve(Long id, Long userId) {
         Declaration declaration = getById(id);
         if (declaration.getStatus() != Declaration.Status.SUBMITTED
                 && declaration.getStatus() != Declaration.Status.UNDER_REVIEW
                 && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
             throw new BadRequestException("Only submitted, under-review, or info-requested declarations can be approved");
         }
+        User controller = userService.getById(userId);
         String fromStatus = declaration.getStatus().name();
         declaration.setStatus(Declaration.Status.APPROVED);
         declaration.setRejectionReason(null);
         declaration.setInfoRequestNote(null);
         Declaration saved = declarationRepository.save(declaration);
-        logAction(saved, DeclarationAuditLog.Action.APPROVED, fromStatus, saved.getStatus().name(), null, null);
+        logAction(saved, DeclarationAuditLog.Action.APPROVED, fromStatus, saved.getStatus().name(), null, controller);
         return saved;
     }
 
     @Transactional
-    public Declaration requestInfo(Long id, String note) {
+    public Declaration requestInfo(Long id, String note, Long userId) {
         Declaration declaration = getById(id);
         if (declaration.getStatus() != Declaration.Status.SUBMITTED && declaration.getStatus() != Declaration.Status.UNDER_REVIEW) {
             throw new BadRequestException("Only submitted or under-review declarations can be flagged for additional info");
         }
+        User controller = userService.getById(userId);
         String fromStatus = declaration.getStatus().name();
         declaration.setStatus(Declaration.Status.INFO_REQUESTED);
         declaration.setInfoRequestNote(note);
         Declaration saved = declarationRepository.save(declaration);
-        logAction(saved, DeclarationAuditLog.Action.INFO_REQUESTED, fromStatus, saved.getStatus().name(), note, null);
+        logAction(saved, DeclarationAuditLog.Action.INFO_REQUESTED, fromStatus, saved.getStatus().name(), note, controller);
         return saved;
     }
 
