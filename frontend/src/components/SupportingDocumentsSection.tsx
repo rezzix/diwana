@@ -287,31 +287,7 @@ export default function SupportingDocumentsSection({
           />
         ))}
 
-        {/* Optional document upload form */}
-        {canEdit && (
-          <form onSubmit={handleUpload} className="p-4 border-b border-gray-200 bg-gray-50/50">
-            <div className="flex items-end gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Document Type</label>
-                <select value={uploadType} onChange={(e) => setUploadType(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  {docTypes.map((dt) => <option key={dt.code} value={dt.code}>{dt.name}{dt.mandatoryFor ? ' *' : ''}</option>)}
-                </select>
-              </div>
-              <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-700 mb-1">File</label>
-                <input id="doc-file-input" type="file" accept=".pdf,image/*"
-                  className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
-              </div>
-              <button type="submit" disabled={uploading}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors">
-                {uploading ? 'Uploading...' : 'Upload'}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* Other (non-mandatory) attachments table */}
+        {/* Uploaded documents table (extra attachments beyond mandatory rows) */}
         {extraAttachments.length === 0 ? (
           mandatoryDocTypes.length === 0 && (
             <div className="p-6 text-center text-sm text-gray-400">No documents attached yet.</div>
@@ -365,6 +341,30 @@ export default function SupportingDocumentsSection({
               ))}
             </tbody>
           </table>
+        )}
+
+        {/* Upload form for additional documents */}
+        {canEdit && (
+          <form onSubmit={handleUpload} className="p-4 border-b border-gray-200 bg-gray-50/50">
+            <div className="flex items-end gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Document Type</label>
+                <select value={uploadType} onChange={(e) => setUploadType(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                  {docTypes.map((dt) => <option key={dt.code} value={dt.code}>{dt.name}{dt.mandatoryFor ? ' *' : ''}</option>)}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">File</label>
+                <input id="doc-file-input" type="file" accept=".pdf,image/*"
+                  className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-sm file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+              </div>
+              <button type="submit" disabled={uploading}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                {uploading ? 'Uploading...' : 'Upload'}
+              </button>
+            </div>
+          </form>
         )}
       </section>
     </>
