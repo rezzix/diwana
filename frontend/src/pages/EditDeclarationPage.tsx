@@ -226,54 +226,54 @@ export default function EditDeclarationPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto p-6">
+      <main className="max-w-6xl mx-auto p-6 space-y-6">
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
 
+        {/* Compact summary: company + customs info (read-only, outside form) */}
+        <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          {company && (
+            <>
+              <span className="text-gray-500">Company:</span>
+              <span className="font-medium text-gray-900">{company.name}</span>
+              {company.ice && (
+                <>
+                  <span className="text-gray-300">|</span>
+                  <span className="text-gray-500">ICE:</span>
+                  <span className="text-gray-700">{company.ice}</span>
+                </>
+              )}
+            </>
+          )}
+          <span className="text-gray-300">|</span>
+          <span className="text-gray-500">Customs Office:</span>
+          <span className="font-medium text-gray-900">{customsOffice}</span>
+          {notes && (
+            <>
+              <span className="text-gray-300">|</span>
+              <span className="text-gray-500">Notes:</span>
+              <span className="text-gray-700">{notes}</span>
+            </>
+          )}
+        </div>
+
+        {/* Supporting Documents (outside form — has its own upload forms) */}
+        <SupportingDocumentsSection
+          declarationId={Number(id)}
+          attachments={attachments}
+          docTypes={docTypes}
+          uploadType={uploadType}
+          setUploadType={setUploadType}
+          uploading={uploading}
+          setUploading={setUploading}
+          canEdit={true}
+          onUpload={handleUpload}
+          onDelete={handleDeleteAtt}
+          onReplace={handleReplaceAtt}
+          error={error}
+          setError={setError}
+        />
+
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Compact summary: company + customs info */}
-          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-            {company && (
-              <>
-                <span className="text-gray-500">Company:</span>
-                <span className="font-medium text-gray-900">{company.name}</span>
-                {company.ice && (
-                  <>
-                    <span className="text-gray-300">|</span>
-                    <span className="text-gray-500">ICE:</span>
-                    <span className="text-gray-700">{company.ice}</span>
-                  </>
-                )}
-              </>
-            )}
-            <span className="text-gray-300">|</span>
-            <span className="text-gray-500">Customs Office:</span>
-            <span className="font-medium text-gray-900">{customsOffice}</span>
-            {notes && (
-              <>
-                <span className="text-gray-300">|</span>
-                <span className="text-gray-500">Notes:</span>
-                <span className="text-gray-700">{notes}</span>
-              </>
-            )}
-          </div>
-
-          {/* Supporting Documents */}
-          <SupportingDocumentsSection
-            declarationId={Number(id)}
-            attachments={attachments}
-            docTypes={docTypes}
-            uploadType={uploadType}
-            setUploadType={setUploadType}
-            uploading={uploading}
-            setUploading={setUploading}
-            canEdit={true}
-            onUpload={handleUpload}
-            onDelete={handleDeleteAtt}
-            onReplace={handleReplaceAtt}
-            error={error}
-            setError={setError}
-          />
-
           {/* Add line */}
           <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
