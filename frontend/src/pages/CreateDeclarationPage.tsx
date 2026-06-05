@@ -146,16 +146,10 @@ export default function CreateDeclarationPage() {
             <h1 className="text-lg font-bold text-gray-900">New Declaration</h1>
           </div>
           {createdId && (
-            <div className="flex items-center gap-2">
-              <Link to={`/declarations/${createdId}/edit`}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
-                Add Goods Lines
-              </Link>
-              <Link to={`/declarations/${createdId}`}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                View Declaration
-              </Link>
-            </div>
+            <Link to={`/declarations/${createdId}`}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+              View Declaration
+            </Link>
           )}
         </div>
       </header>
@@ -254,6 +248,14 @@ export default function CreateDeclarationPage() {
               error={error}
               setError={setError}
             />
+
+            <div className="flex justify-end gap-3">
+              <Link to="/declarations" className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Back to Declarations</Link>
+              <Link to={`/declarations/${createdId}/edit`}
+                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                Add Goods Lines
+              </Link>
+            </div>
           </div>
         )}
       </main>
