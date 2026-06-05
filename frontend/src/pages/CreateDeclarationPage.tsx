@@ -162,13 +162,13 @@ export default function CreateDeclarationPage() {
         {!createdId && (
           <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-1">
             <h2 className="font-semibold text-gray-900">Company</h2>
-            {user && <div className="text-sm text-gray-500">Declarant: {user.firstName} {user.lastName}</div>}
             {company && (
               <>
                 <div className="text-sm text-gray-700"><strong>{company.name}</strong></div>
                 {company.ice && <div className="text-sm text-gray-500">ICE: {company.ice}</div>}
               </>
             )}
+            {user && <div className="text-sm text-gray-500">Declarant: {user.firstName} {user.lastName}</div>}
           </section>
         )}
 
