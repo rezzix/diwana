@@ -264,10 +264,16 @@ export default function CreateDeclarationPage() {
 
             <div className="flex justify-end gap-3">
               <Link to="/declarations" className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Back to Declarations</Link>
-              <Link to={mandatoryDocsUploaded ? `/declarations/${createdId}/edit` : '#'}
-                className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors ${mandatoryDocsUploaded ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
-                Add Goods Lines
-              </Link>
+              {mandatoryDocsUploaded ? (
+                <Link to={`/declarations/${createdId}/edit`}
+                  className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                  Add Goods Lines
+                </Link>
+              ) : (
+                <span className="px-6 py-2.5 bg-gray-200 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed inline-block">
+                  Add Goods Lines
+                </span>
+              )}
             </div>
           </div>
         )}
