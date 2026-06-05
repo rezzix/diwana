@@ -5,9 +5,11 @@ import { getPrefillData, createDeclaration } from '@/api/declarations';
 import { getAttachments, deleteAttachment, type AttachmentDto } from '@/api/attachments';
 import { getDocumentTypes, type DocumentTypeDto } from '@/api/documentTypes';
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
+import { useAuthStore } from '@/stores/authStore';
 import SupportingDocumentsSection from '@/components/SupportingDocumentsSection';
 
 export default function CreateDeclarationPage() {
+  const user = useAuthStore((s) => s.user);
   const [company, setCompany] = useState<{ name: string; ice: string | null } | null>(null);
   const [customsOffices, setCustomsOffices] = useState<CustomsOfficeDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,11 +159,16 @@ export default function CreateDeclarationPage() {
       <main className="max-w-6xl mx-auto p-6">
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
 
-        {!createdId && company && (
+        {!createdId && (
           <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-1">
             <h2 className="font-semibold text-gray-900">Company</h2>
-            <div className="text-sm text-gray-700"><strong>{company.name}</strong></div>
-            {company.ice && <div className="text-sm text-gray-500">ICE: {company.ice}</div>}
+            {user && <div className="text-sm text-gray-500">Declarant: {user.firstName} {user.lastName}</div>}
+            {company && (
+              <>
+                <div className="text-sm text-gray-700"><strong>{company.name}</strong></div>
+                {company.ice && <div className="text-sm text-gray-500">ICE: {company.ice}</div>}
+              </>
+            )}
           </section>
         )}
 
