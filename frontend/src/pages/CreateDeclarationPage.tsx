@@ -176,37 +176,54 @@ export default function CreateDeclarationPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Customs information — always visible, read-only after creation */}
-          <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Customs Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
-                {createdId ? (
-                  <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">{customsOffice}</div>
-                ) : (
+        {!createdId && (
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Customs information */}
+            <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900">Customs Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
                   <select value={customsOffice} onChange={(e) => { setCustomsOffice(e.target.value); if (error) setError(''); }} required
                     className={`w-full px-3 py-2 rounded-lg text-sm ${!customsOffice ? 'border-red-300 bg-red-50' : 'border border-gray-300'}`}>
                     <option value="">— Select customs office —</option>
                     {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
                   </select>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                {createdId ? (
-                  <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700 min-h-[2.5rem]">{notes || '—'}</div>
-                ) : (
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                   <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                )}
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          {/* Supporting Documents — shown after declaration is created */}
-          {createdId && (
+            <div className="flex justify-end gap-3">
+              <Link to="/declarations" className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</Link>
+              <button type="submit" disabled={saving || !customsOffice}
+                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                {saving ? 'Creating...' : 'Create Declaration'}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {createdId && (
+          <div className="space-y-6">
+            {/* Compact customs info summary */}
+            <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex items-center gap-4 text-sm">
+              <span className="text-gray-500">Customs Office:</span>
+              <span className="font-medium text-gray-900">{customsOffice}</span>
+              {notes && (
+                <>
+                  <span className="text-gray-300">|</span>
+                  <span className="text-gray-500">Notes:</span>
+                  <span className="text-gray-700">{notes}</span>
+                </>
+              )}
+            </div>
+
+            {/* Supporting Documents */}
             <SupportingDocumentsSection
               declarationId={createdId}
               attachments={attachments}
@@ -222,18 +239,8 @@ export default function CreateDeclarationPage() {
               error={error}
               setError={setError}
             />
-          )}
-
-          {!createdId && (
-            <div className="flex justify-end gap-3">
-              <Link to="/declarations" className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</Link>
-              <button type="submit" disabled={saving || !customsOffice}
-                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors">
-                {saving ? 'Creating...' : 'Create Declaration'}
-              </button>
-            </div>
-          )}
-        </form>
+          </div>
+        )}
       </main>
     </div>
   );
