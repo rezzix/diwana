@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
 import { getDeclaration, updateDeclaration, getPrefillData, type TariffRateDto, type LineItemRequest } from '@/api/declarations';
 import { getOrigins, type OriginDto } from "@/api/origins";
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
@@ -38,12 +39,17 @@ export default function EditDeclarationPage() {
 
   useEffect(() => {
     if (!id) return;
-    getDeclaration(Number(id)).then((decl) => {
-      Promise.all([getOrigins(), getPrefillData(), getCustomsOffices()]).then(([originData, prefillData, officeData]) => {
+    const controller = new AbortController();
+    getDeclaration(Number(id), controller.signal).then((decl) => {
+      if (controller.signal.aborted) return;
+      Promise.all([getOrigins(controller.signal), getPrefillData(controller.signal), getCustomsOffices(controller.signal)]).then(([originData, prefillData, officeData]) => {
+        if (controller.signal.aborted) return;
         setOrigins(originData);
         setTariffRates(prefillData.tariffRates);
         setCustomsOffices(officeData);
-      }).catch(() => {});
+      }).catch((err) => {
+        if (axios.isCancel(err)) return;
+      });
       setDeclarationNumber(decl.declarationNumber);
       setCustomsOffice(decl.customsOffice || '');
       setNotes(decl.notes || '');
@@ -59,8 +65,14 @@ export default function EditDeclarationPage() {
         vatRate: li.vatRate || undefined,
         currency: li.currency,
       })));
-    }).catch(() => setError('Failed to load declaration'))
-      .finally(() => setLoading(false));
+    }).catch((err) => {
+      if (axios.isCancel(err)) return;
+      setError('Failed to load declaration');
+    })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [id]);
 
   const calcTotal = (q: string, p: string) => ((parseFloat(q) || 0) * (parseFloat(p) || 0)).toFixed(2);

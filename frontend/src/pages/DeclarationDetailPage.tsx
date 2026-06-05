@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, getAuditLog, type DeclarationDto, type AuditLogDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
 import { useAuthStore } from '@/stores/authStore';
@@ -66,25 +67,32 @@ export default function DeclarationDetailPage() {
   const isOwner = user?.role === 'DECLARANT';
   const isController = user?.role === 'CONTROLLER';
 
-  const fetchData = async () => {
+  const fetchData = async (signal?: AbortSignal) => {
     if (!id) return;
     try {
-      const d = await getDeclaration(Number(id));
+      const d = await getDeclaration(Number(id), signal);
+      if (signal?.aborted) return;
       setDecl(d);
       const [atts, logs] = await Promise.all([
-        getAttachments(Number(id)),
-        getAuditLog(Number(id)),
+        getAttachments(Number(id), signal),
+        getAuditLog(Number(id), signal),
       ]);
+      if (signal?.aborted) return;
       setAttachments(atts);
       setAuditLog(logs);
-    } catch {
+    } catch (err) {
+      if (axios.isCancel(err)) return;
       setError('Failed to load declaration');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
-  useEffect(() => { fetchData(); }, [id]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
+  }, [id]);
 
   const ALLOWED_FILE_TYPES = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.tif'];
   const ALLOWED_MIME_PREFIXES = ['application/pdf', 'image/'];

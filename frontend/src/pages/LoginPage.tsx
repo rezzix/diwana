@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
 import { useAuth } from '@/hooks/useAuth';
 import { getDevUsers } from '@/api/auth';
 import type { DevUserDto } from '@/types';
@@ -24,7 +25,15 @@ export default function LoginPage() {
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/';
 
   useEffect(() => {
-    getDevUsers().then(setDevUsers).catch(() => {});
+    const controller = new AbortController();
+    getDevUsers(controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setDevUsers(data);
+      })
+      .catch((err) => {
+        if (axios.isCancel(err)) return;
+      });
+    return () => controller.abort();
   }, []);
 
   const handleSelectUser = async (u: DevUserDto) => {

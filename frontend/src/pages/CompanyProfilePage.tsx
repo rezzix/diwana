@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { getMyCompany, updateCompany } from '@/api/companies';
 import type { CompanyDto } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
@@ -28,8 +29,10 @@ export default function CompanyProfilePage() {
   });
 
   useEffect(() => {
-    getMyCompany()
+    const controller = new AbortController();
+    getMyCompany(controller.signal)
       .then((c) => {
+        if (controller.signal.aborted) return;
         if (c) {
           setCompany(c);
           setForm({
@@ -48,8 +51,14 @@ export default function CompanyProfilePage() {
           });
         }
       })
-      .catch(() => setError('Failed to load company profile'))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (axios.isCancel(err)) return;
+        setError('Failed to load company profile');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   const handleSubmit = async (e: FormEvent) => {
