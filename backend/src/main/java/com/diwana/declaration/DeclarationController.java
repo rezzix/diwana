@@ -127,16 +127,20 @@ public class DeclarationController {
     @PreAuthorize("hasRole('CONTROLLER')")
     public ResponseEntity<ApiResponse<DeclarationDto>> reject(
             @PathVariable Long id,
-            @Valid @RequestBody DeclarationDto.RejectRequest request) {
-        Declaration rejected = declarationService.reject(id, request.reason());
+            @Valid @RequestBody DeclarationDto.RejectRequest request,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        Declaration rejected = declarationService.reject(id, request.reason(), userId);
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(rejected)));
     }
 
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasRole('CONTROLLER')")
     public ResponseEntity<ApiResponse<DeclarationDto>> approve(
-            @PathVariable Long id) {
-        Declaration approved = declarationService.approve(id);
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        Declaration approved = declarationService.approve(id, userId);
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(approved)));
     }
 
@@ -144,8 +148,10 @@ public class DeclarationController {
     @PreAuthorize("hasRole('CONTROLLER')")
     public ResponseEntity<ApiResponse<DeclarationDto>> requestInfo(
             @PathVariable Long id,
-            @Valid @RequestBody DeclarationDto.InfoRequestRequest request) {
-        Declaration flagged = declarationService.requestInfo(id, request.note());
+            @Valid @RequestBody DeclarationDto.InfoRequestRequest request,
+            @AuthenticationPrincipal UserDetails currentUser) {
+        Long userId = authHelper.getCurrentUserId(currentUser);
+        Declaration flagged = declarationService.requestInfo(id, request.note(), userId);
         return ResponseEntity.ok(ApiResponse.of(declarationMapper.toDto(flagged)));
     }
 

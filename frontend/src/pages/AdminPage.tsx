@@ -50,20 +50,22 @@ export default function AdminPage() {
   const [editingDocType, setEditingDocType] = useState<DocumentTypeDto | null>(null);
   const [editDocTypeForm, setEditDocTypeForm] = useState({ code: '', name: '', description: '', mandatoryFor: '', active: true });
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
     try {
       const params: Record<string, string | number> = { page, size: 20 };
       if (search) params.search = search;
       if (roleFilter) params.role = roleFilter;
-      const res = await listUsers(params);
+      const res = await listUsers(params, signal);
+      if (signal?.aborted) return;
       setUsers(res.data);
       setPagination(res.pagination);
-    } catch {
-      setError('Failed to load users');
+    } catch (err) {
+      if (axios.isCancel(err)) return;
+      if (!signal?.aborted) setError('Failed to load users');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
@@ -80,14 +82,20 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
+    const controller = new AbortController();
+    fetchUsers(controller.signal);
+    return () => controller.abort();
   }, [page, roleFilter]);
 
   useEffect(() => {
     const controller = new AbortController();
     getCustomsOffices(controller.signal)
-      .then((data) => { if (!controller.signal.aborted) setCustomsOffices(data); })
-      .catch((err) => { if (axios.isCancel(err)) return; });
+      .then((data) => {
+        if (!controller.signal.aborted) setCustomsOffices(data);
+      })
+      .catch((err) => {
+        if (axios.isCancel(err)) return;
+      });
     return () => controller.abort();
   }, []);
 

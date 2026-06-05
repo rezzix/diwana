@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
 import { getDeclaration, updateDeclaration, getPrefillData, type TariffRateDto, type LineItemRequest } from '@/api/declarations';
 import { getOrigins, type OriginDto } from "@/api/origins";
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
@@ -38,12 +39,17 @@ export default function EditDeclarationPage() {
 
   useEffect(() => {
     if (!id) return;
-    getDeclaration(Number(id)).then((decl) => {
-      Promise.all([getOrigins(), getPrefillData(), getCustomsOffices()]).then(([originData, prefillData, officeData]) => {
+    const controller = new AbortController();
+    getDeclaration(Number(id), controller.signal).then((decl) => {
+      if (controller.signal.aborted) return;
+      Promise.all([getOrigins(controller.signal), getPrefillData(controller.signal), getCustomsOffices(controller.signal)]).then(([originData, prefillData, officeData]) => {
+        if (controller.signal.aborted) return;
         setOrigins(originData);
         setTariffRates(prefillData.tariffRates);
         setCustomsOffices(officeData);
-      }).catch(() => {});
+      }).catch((err) => {
+        if (axios.isCancel(err)) return;
+      });
       setDeclarationNumber(decl.declarationNumber);
       setCustomsOffice(decl.customsOffice || '');
       setNotes(decl.notes || '');
@@ -59,8 +65,14 @@ export default function EditDeclarationPage() {
         vatRate: li.vatRate || undefined,
         currency: li.currency,
       })));
-    }).catch(() => setError('Failed to load declaration'))
-      .finally(() => setLoading(false));
+    }).catch((err) => {
+      if (axios.isCancel(err)) return;
+      setError('Failed to load declaration');
+    })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [id]);
 
   const calcTotal = (q: string, p: string) => ((parseFloat(q) || 0) * (parseFloat(p) || 0)).toFixed(2);
@@ -98,10 +110,14 @@ export default function EditDeclarationPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!id || lines.length === 0) return;
+    if (!customsOffice) {
+      setError('Please select a customs office');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
-      await updateDeclaration(Number(id), { lineItems: lines, customsOffice: customsOffice || undefined, notes: notes || undefined });
+      await updateDeclaration(Number(id), { lineItems: lines, customsOffice, notes: notes || undefined });
       navigate(`/declarations/${id}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to update declaration');
@@ -277,9 +293,9 @@ export default function EditDeclarationPage() {
             <h2 className="font-semibold text-gray-900">Customs Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office</label>
-                <select value={customsOffice} onChange={(e) => setCustomsOffice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
+                <select value={customsOffice} onChange={(e) => { setCustomsOffice(e.target.value); if (error) setError(''); }} required
+                  className={`w-full px-3 py-2 rounded-lg text-sm ${!customsOffice ? 'border-red-300 bg-red-50' : 'border border-gray-300'}`}>
                   <option value="">— Select customs office —</option>
                   {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
                 </select>
