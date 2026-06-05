@@ -94,12 +94,16 @@ export default function CreateDeclarationPage() {
       setError('Add at least one goods line before submitting');
       return;
     }
+    if (!customsOffice) {
+      setError('Please select a customs office');
+      return;
+    }
     setSaving(true);
     setError('');
     try {
       const result = await createDeclaration({
         lineItems: lines,
-        customsOffice: customsOffice || undefined,
+        customsOffice,
         notes: notes || undefined,
       });
       navigate(`/declarations/${result.id}`);
@@ -316,9 +320,9 @@ export default function CreateDeclarationPage() {
             <h2 className="font-semibold text-gray-900">Customs Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office</label>
-                <select value={customsOffice} onChange={(e) => setCustomsOffice(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
+                <select value={customsOffice} onChange={(e) => { setCustomsOffice(e.target.value); if (error) setError(''); }} required
+                  className={`w-full px-3 py-2 rounded-lg text-sm ${!customsOffice ? 'border-red-300 bg-red-50' : 'border border-gray-300'}`}>
                   <option value="">— Select customs office —</option>
                   {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
                 </select>
