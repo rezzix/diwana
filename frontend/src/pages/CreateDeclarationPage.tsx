@@ -158,10 +158,11 @@ export default function CreateDeclarationPage() {
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
 
         {!createdId && company && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700 space-y-1">
-            <div><strong>{company.name}</strong></div>
-            {company.ice && <div><span className="text-blue-500">ICE:</span> {company.ice}</div>}
-          </div>
+          <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-1">
+            <h2 className="font-semibold text-gray-900">Company</h2>
+            <div className="text-sm text-gray-700"><strong>{company.name}</strong></div>
+            {company.ice && <div className="text-sm text-gray-500">ICE: {company.ice}</div>}
+          </section>
         )}
 
         {createdId && (
