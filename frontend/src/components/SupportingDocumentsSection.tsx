@@ -197,7 +197,6 @@ export default function SupportingDocumentsSection({
 
   // Separate mandatory and optional doc types
   const mandatoryDocTypes = docTypes.filter((dt) => dt.mandatoryFor);
-  const optionalDocTypes = docTypes.filter((dt) => !dt.mandatoryFor);
 
   // Map attachments by docType for quick lookup
   const attachmentsByType: Record<string, AttachmentDto> = {};
@@ -207,10 +206,13 @@ export default function SupportingDocumentsSection({
     }
   }
 
-  // Non-mandatory attachments (those not matching a mandatory doc type)
-  const nonMandatoryAttachments = attachments.filter(
-    (att) => !mandatoryDocTypes.some((dt) => dt.code === att.docType)
-  );
+  // Extra attachments beyond the first per mandatory type
+  const shownInMandatoryRows = new Set<string>();
+  for (const dt of mandatoryDocTypes) {
+    const att = attachmentsByType[dt.code];
+    if (att) shownInMandatoryRows.add(String(att.id));
+  }
+  const extraAttachments = attachments.filter((att) => !shownInMandatoryRows.has(String(att.id)));
 
   const handleUpload = async (e: FormEvent) => {
     e.preventDefault();
@@ -293,7 +295,7 @@ export default function SupportingDocumentsSection({
                 <label className="block text-xs font-medium text-gray-700 mb-1">Document Type</label>
                 <select value={uploadType} onChange={(e) => setUploadType(e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                  {optionalDocTypes.map((dt) => <option key={dt.code} value={dt.code}>{dt.name}</option>)}
+                  {docTypes.map((dt) => <option key={dt.code} value={dt.code}>{dt.name}{dt.mandatoryFor ? ' *' : ''}</option>)}
                 </select>
               </div>
               <div className="flex-1">
@@ -310,7 +312,7 @@ export default function SupportingDocumentsSection({
         )}
 
         {/* Other (non-mandatory) attachments table */}
-        {nonMandatoryAttachments.length === 0 ? (
+        {extraAttachments.length === 0 ? (
           mandatoryDocTypes.length === 0 && (
             <div className="p-6 text-center text-sm text-gray-400">No documents attached yet.</div>
           )
@@ -324,7 +326,7 @@ export default function SupportingDocumentsSection({
               <th className="text-right px-4 py-2 font-medium text-gray-700">Actions</th>
             </tr></thead>
             <tbody>
-              {nonMandatoryAttachments.map((att) => (
+              {extraAttachments.map((att) => (
                 <tr key={att.id} className="border-b border-gray-100">
                   <td className="px-4 py-2 text-gray-700">
                     {docTypeLabels[att.docType] || att.docType}
