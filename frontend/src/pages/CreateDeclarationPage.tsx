@@ -146,10 +146,16 @@ export default function CreateDeclarationPage() {
             <h1 className="text-lg font-bold text-gray-900">New Declaration</h1>
           </div>
           {createdId && (
-            <Link to={`/declarations/${createdId}`}
-              className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
-              View Declaration
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link to={`/declarations/${createdId}/edit`}
+                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
+                Add Goods Lines
+              </Link>
+              <Link to={`/declarations/${createdId}`}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                View Declaration
+              </Link>
+            </div>
           )}
         </div>
       </header>
@@ -157,7 +163,7 @@ export default function CreateDeclarationPage() {
       <main className="max-w-6xl mx-auto p-6">
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
 
-        {company && !createdId && (
+        {company && (
           <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-700 text-xs rounded-lg px-4 py-2">
             Declaring for: <strong>{company.name}</strong> (ICE: {company.ice || '—'})
           </div>
@@ -165,13 +171,40 @@ export default function CreateDeclarationPage() {
 
         {createdId && (
           <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-2">
-            Declaration created successfully! You can now upload supporting documents below, or{' '}
-            <Link to={`/declarations/${createdId}/edit`} className="underline font-medium">add goods lines</Link>, or{' '}
-            <Link to={`/declarations/${createdId}`} className="underline font-medium">view the declaration</Link>.
+            Declaration created successfully! Upload supporting documents below, then{' '}
+            <Link to={`/declarations/${createdId}/edit`} className="underline font-medium">add goods lines</Link>.
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Customs information — always visible, read-only after creation */}
+          <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900">Customs Information</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
+                {createdId ? (
+                  <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">{customsOffice}</div>
+                ) : (
+                  <select value={customsOffice} onChange={(e) => { setCustomsOffice(e.target.value); if (error) setError(''); }} required
+                    className={`w-full px-3 py-2 rounded-lg text-sm ${!customsOffice ? 'border-red-300 bg-red-50' : 'border border-gray-300'}`}>
+                    <option value="">— Select customs office —</option>
+                    {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
+                  </select>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                {createdId ? (
+                  <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700 min-h-[2.5rem]">{notes || '—'}</div>
+                ) : (
+                  <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                )}
+              </div>
+            </div>
+          </section>
+
           {/* Supporting Documents — shown after declaration is created */}
           {createdId && (
             <SupportingDocumentsSection
@@ -189,28 +222,6 @@ export default function CreateDeclarationPage() {
               error={error}
               setError={setError}
             />
-          )}
-
-          {/* Customs information — shown before creation */}
-          {!createdId && (
-            <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-              <h2 className="font-semibold text-gray-900">Customs Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
-                  <select value={customsOffice} onChange={(e) => { setCustomsOffice(e.target.value); if (error) setError(''); }} required
-                    className={`w-full px-3 py-2 rounded-lg text-sm ${!customsOffice ? 'border-red-300 bg-red-50' : 'border border-gray-300'}`}>
-                    <option value="">— Select customs office —</option>
-                    {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
-                  </select>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                </div>
-              </div>
-            </section>
           )}
 
           {!createdId && (
