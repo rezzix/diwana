@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, getAuditLog, type DeclarationDto, type AuditLogDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, type AttachmentDto } from '@/api/attachments';
-import { getDocumentTypes, type DocumentTypeDto } from '@/api/documentTypes';
+import { getDocumentTypes, formatMandatoryFor, type DocumentTypeDto } from '@/api/documentTypes';
 import { useAuthStore } from '@/stores/authStore';
 
 function DocumentViewer({ attachment, declarationId, onClose }: {
@@ -485,7 +485,7 @@ export default function DeclarationDetailPage() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">Document Type</label>
                   <select value={uploadType} onChange={(e) => setUploadType(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    {docTypes.map((dt) => <option key={dt.code} value={dt.code}>{dt.name}</option>)}
+                    {docTypes.map((dt) => <option key={dt.code} value={dt.code}>{dt.name}{dt.mandatoryFor ? ' *' : ''}</option>)}
                   </select>
                 </div>
                 <div className="flex-1">
@@ -516,7 +516,14 @@ export default function DeclarationDetailPage() {
               <tbody>
                 {attachments.map((att) => (
                   <tr key={att.id} className="border-b border-gray-100">
-                    <td className="px-4 py-2 text-gray-700">{docTypeLabels[att.docType] || att.docType}</td>
+                    <td className="px-4 py-2 text-gray-700">
+                      {docTypeLabels[att.docType] || att.docType}
+                      {docTypes.find((dt) => dt.code === att.docType)?.mandatoryFor && (
+                        <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 text-amber-700">
+                          {formatMandatoryFor(docTypes.find((dt) => dt.code === att.docType)?.mandatoryFor || null)}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-2">
                       <button onClick={() => setViewingAttachment(att)}
                         className="text-primary-600 hover:underline font-medium">
