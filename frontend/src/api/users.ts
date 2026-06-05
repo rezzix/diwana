@@ -12,8 +12,8 @@ export interface CreateUserRequest {
   customsOfficeId?: number | null;
 }
 
-export async function listUsers(params?: Record<string, string | number>) {
-  return apiGetPaginated<UserDto>('/users', params);
+export async function listUsers(params?: Record<string, string | number>, signal?: AbortSignal) {
+  return apiGetPaginated<UserDto>('/users', params, signal);
 }
 
 export async function getUser(id: number): Promise<UserDto> {

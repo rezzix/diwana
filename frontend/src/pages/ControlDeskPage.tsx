@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import { getPendingReviewDeclarations, type DeclarationDto } from '@/api/declarations';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -10,10 +11,19 @@ export default function ControlDeskPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    getPendingReviewDeclarations()
-      .then(setDeclarations)
-      .catch(() => setError('Failed to load pending declarations'))
-      .finally(() => setLoading(false));
+    const controller = new AbortController();
+    getPendingReviewDeclarations(controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setDeclarations(data);
+      })
+      .catch((err) => {
+        if (axios.isCancel(err)) return;
+        if (!controller.signal.aborted) setError('Failed to load pending declarations');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   const refresh = async () => {

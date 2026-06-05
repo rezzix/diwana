@@ -8,9 +8,9 @@ export interface OriginDto {
 
 let originsCache: OriginDto[] | null = null;
 
-export async function getOrigins(): Promise<OriginDto[]> {
+export async function getOrigins(signal?: AbortSignal): Promise<OriginDto[]> {
   if (originsCache) return originsCache;
-  const data = await apiGet<OriginDto[]>('/origins');
+  const data = await apiGet<OriginDto[]>('/origins', undefined, signal);
   originsCache = data;
   return data;
 }

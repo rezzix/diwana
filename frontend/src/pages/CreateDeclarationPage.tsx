@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { getPrefillData, createDeclaration, type TariffRateDto, type LineItemRequest } from '@/api/declarations';
 import { getOrigins, type OriginDto } from '@/api/origins';
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
@@ -36,18 +37,26 @@ export default function CreateDeclarationPage() {
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
+    const controller = new AbortController();
     Promise.all([
-      getPrefillData(),
-      getOrigins(),
-      getCustomsOffices(),
+      getPrefillData(controller.signal),
+      getOrigins(controller.signal),
+      getCustomsOffices(controller.signal),
     ]).then(([data, originData, officeData]) => {
+      if (controller.signal.aborted) return;
       setCompany(data.company ? { name: data.company.name, ice: data.company.ice } : null);
       setTariffRates(data.tariffRates);
       setOrigins(originData);
       setCustomsOffices(officeData);
     })
-      .catch(() => setError('Failed to load prefill data'))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (axios.isCancel(err)) return;
+        setError('Failed to load prefill data');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
 
   const calcTotal = (q: string, p: string) => {

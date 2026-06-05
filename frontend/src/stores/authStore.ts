@@ -10,7 +10,7 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  checkSession: () => Promise<void>;
+  checkSession: (signal?: AbortSignal) => Promise<void>;
   clearError: () => void;
 }
 
@@ -48,13 +48,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  checkSession: async () => {
+  checkSession: async (signal?: AbortSignal) => {
     const wasAuthenticated = get().isAuthenticated;
     if (!wasAuthenticated) set({ isLoading: true });
     try {
-      const user = await authApi.me();
+      const user = await authApi.me(signal);
       set({ user, isAuthenticated: true, isLoading: false });
-    } catch {
+    } catch (err) {
+      if (axios.isCancel(err)) return;
       set({ user: null, isAuthenticated: false, isLoading: false });
     }
   },

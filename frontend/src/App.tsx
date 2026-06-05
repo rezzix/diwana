@@ -50,7 +50,11 @@ function HomePage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
-    getDashboardStats().then(setStats).catch(() => {});
+    const controller = new AbortController();
+    getDashboardStats(controller.signal).then((data) => {
+      if (!controller.signal.aborted) setStats(data);
+    }).catch(() => {});
+    return () => controller.abort();
   }, []);
 
   return (
@@ -189,7 +193,9 @@ function AppRoutes() {
   const isLoading = useAuthStore((s) => s.isLoading);
 
   useEffect(() => {
-    checkSession();
+    const controller = new AbortController();
+    checkSession(controller.signal);
+    return () => controller.abort();
   }, [checkSession]);
 
   if (isLoading) {

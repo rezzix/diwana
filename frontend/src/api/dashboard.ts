@@ -25,6 +25,6 @@ export interface DashboardStats {
   controllerStats: ControllerStats | null;
 }
 
-export async function getDashboardStats(): Promise<DashboardStats> {
-  return apiGet<DashboardStats>('/dashboard');
+export async function getDashboardStats(signal?: AbortSignal): Promise<DashboardStats> {
+  return apiGet<DashboardStats>('/dashboard', undefined, signal);
 }
