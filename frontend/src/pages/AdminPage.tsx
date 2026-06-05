@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { listUsers, createUser, deactivateUser, type CreateUserRequest } from '@/api/users';
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
-import { getAllDocumentTypes, createDocumentType, updateDocumentType, deleteDocumentType, type DocumentTypeDto } from '@/api/documentTypes';
+import { getAllDocumentTypes, createDocumentType, updateDocumentType, deleteDocumentType, formatMandatoryFor, type DocumentTypeDto } from '@/api/documentTypes';
 import type { UserDto, PaginationInfo } from '@/types';
 
 const roleBadge: Record<string, string> = {
@@ -45,10 +45,10 @@ export default function AdminPage() {
   const [docTypes, setDocTypes] = useState<DocumentTypeDto[]>([]);
   const [docTypesLoading, setDocTypesLoading] = useState(true);
   const [showCreateDocType, setShowCreateDocType] = useState(false);
-  const [docTypeForm, setDocTypeForm] = useState({ code: '', name: '', description: '' });
+  const [docTypeForm, setDocTypeForm] = useState({ code: '', name: '', description: '', mandatoryFor: '' });
   const [docTypeCreating, setDocTypeCreating] = useState(false);
   const [editingDocType, setEditingDocType] = useState<DocumentTypeDto | null>(null);
-  const [editDocTypeForm, setEditDocTypeForm] = useState({ code: '', name: '', description: '', active: true });
+  const [editDocTypeForm, setEditDocTypeForm] = useState({ code: '', name: '', description: '', mandatoryFor: '', active: true });
 
   const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -162,7 +162,7 @@ export default function AdminPage() {
       await createDocumentType(docTypeForm);
       setSuccess(`Document type "${docTypeForm.name}" created`);
       setShowCreateDocType(false);
-      setDocTypeForm({ code: '', name: '', description: '' });
+      setDocTypeForm({ code: '', name: '', description: '', mandatoryFor: '' });
       fetchDocTypes();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create document type');
@@ -173,7 +173,7 @@ export default function AdminPage() {
 
   const handleEditDocType = (dt: DocumentTypeDto) => {
     setEditingDocType(dt);
-    setEditDocTypeForm({ code: dt.code, name: dt.name, description: dt.description || '', active: dt.active });
+    setEditDocTypeForm({ code: dt.code, name: dt.name, description: dt.description || '', mandatoryFor: dt.mandatoryFor || '', active: dt.active });
   };
 
   const handleUpdateDocType = async (e: FormEvent) => {
@@ -443,7 +443,7 @@ export default function AdminPage() {
             {showCreateDocType && (
               <form onSubmit={handleCreateDocType} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
                 <h2 className="font-semibold text-gray-900">Add Document Type</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
                     <input type="text" required value={docTypeForm.code}
@@ -465,6 +465,14 @@ export default function AdminPage() {
                       placeholder="Optional description"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mandatory For</label>
+                    <input type="text" value={docTypeForm.mandatoryFor}
+                      onChange={(e) => setDocTypeForm({ ...docTypeForm, mandatoryFor: e.target.value })}
+                      placeholder="* for all, or HS prefixes: 8471,6109"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-gray-400">Empty = optional, * = all goods, comma-separated HS prefixes = specific goods</p>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
                   <button type="submit" disabled={docTypeCreating}
@@ -478,7 +486,7 @@ export default function AdminPage() {
             {editingDocType && (
               <form onSubmit={handleUpdateDocType} className="bg-amber-50 border border-amber-200 rounded-lg p-6 space-y-4">
                 <h2 className="font-semibold text-amber-900">Edit Document Type</h2>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
                     <input type="text" required value={editDocTypeForm.code}
@@ -496,6 +504,14 @@ export default function AdminPage() {
                     <input type="text" value={editDocTypeForm.description}
                       onChange={(e) => setEditDocTypeForm({ ...editDocTypeForm, description: e.target.value })}
                       className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Mandatory For</label>
+                    <input type="text" value={editDocTypeForm.mandatoryFor}
+                      onChange={(e) => setEditDocTypeForm({ ...editDocTypeForm, mandatoryFor: e.target.value })}
+                      placeholder="* for all, or HS prefixes: 8471,6109"
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-amber-600">Empty = optional, * = all goods, comma-separated HS prefixes = specific goods</p>
                   </div>
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -526,20 +542,30 @@ export default function AdminPage() {
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Code</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Name</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Description</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Mandatory For</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {docTypesLoading ? (
-                    <tr><td colSpan={5} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading...</td></tr>
                   ) : docTypes.length === 0 ? (
-                    <tr><td colSpan={5} className="text-center py-8 text-gray-400">No document types found</td></tr>
+                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">No document types found</td></tr>
                   ) : docTypes.map((dt) => (
                     <tr key={dt.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono text-xs text-gray-600">{dt.code}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{dt.name}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{dt.description || '—'}</td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                          !dt.mandatoryFor ? 'bg-gray-100 text-gray-600' :
+                          dt.mandatoryFor === '*' ? 'bg-red-100 text-red-700' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>
+                          {formatMandatoryFor(dt.mandatoryFor)}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-block w-2 h-2 rounded-full ${dt.active ? 'bg-green-500' : 'bg-red-500'}`} />
                       </td>

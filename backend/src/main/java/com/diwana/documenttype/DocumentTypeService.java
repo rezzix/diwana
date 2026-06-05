@@ -40,6 +40,7 @@ public class DocumentTypeService {
         docType.setCode(request.code());
         docType.setName(request.name());
         docType.setDescription(request.description());
+        docType.setMandatoryFor(request.mandatoryFor());
         docType.setActive(true);
         return documentTypeRepository.save(docType);
     }
@@ -56,6 +57,7 @@ public class DocumentTypeService {
         docType.setCode(request.code());
         docType.setName(request.name());
         docType.setDescription(request.description());
+        docType.setMandatoryFor(request.mandatoryFor());
         if (request.active() != null) {
             docType.setActive(request.active());
         }

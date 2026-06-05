@@ -7,6 +7,7 @@ public record DocumentTypeDto(
         String code,
         String name,
         String description,
+        String mandatoryFor,
         boolean active,
         String createdAt,
         String updatedAt
@@ -14,13 +15,15 @@ public record DocumentTypeDto(
     public record CreateRequest(
             @NotBlank String code,
             @NotBlank String name,
-            String description
+            String description,
+            String mandatoryFor
     ) {}
 
     public record UpdateRequest(
             @NotBlank String code,
             @NotBlank String name,
             String description,
+            String mandatoryFor,
             Boolean active
     ) {}
 }

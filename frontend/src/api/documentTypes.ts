@@ -5,9 +5,23 @@ export interface DocumentTypeDto {
   code: string;
   name: string;
   description: string | null;
+  mandatoryFor: string | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export function formatMandatoryFor(value: string | null): string {
+  if (!value) return 'Optional';
+  if (value === '*') return 'All goods';
+  return `HS: ${value}`;
+}
+
+export function isDocumentMandatoryForHsCode(docType: DocumentTypeDto, hsCode: string): boolean {
+  if (!docType.mandatoryFor) return false;
+  if (docType.mandatoryFor === '*') return true;
+  const prefixes = docType.mandatoryFor.split(',').map((s) => s.trim()).filter(Boolean);
+  return prefixes.some((prefix) => hsCode.startsWith(prefix));
 }
 
 export async function getDocumentTypes(signal?: AbortSignal): Promise<DocumentTypeDto[]> {
@@ -18,11 +32,11 @@ export async function getAllDocumentTypes(signal?: AbortSignal): Promise<Documen
   return apiGet<DocumentTypeDto[]>('/document-types/all', undefined, signal);
 }
 
-export async function createDocumentType(data: { code: string; name: string; description?: string }): Promise<DocumentTypeDto> {
+export async function createDocumentType(data: { code: string; name: string; description?: string; mandatoryFor?: string }): Promise<DocumentTypeDto> {
   return apiPost<DocumentTypeDto>('/document-types', data);
 }
 
-export async function updateDocumentType(id: number, data: { code: string; name: string; description?: string; active?: boolean }): Promise<DocumentTypeDto> {
+export async function updateDocumentType(id: number, data: { code: string; name: string; description?: string; mandatoryFor?: string; active?: boolean }): Promise<DocumentTypeDto> {
   return apiPut<DocumentTypeDto>(`/document-types/${id}`, data);
 }
 
