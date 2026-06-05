@@ -2,9 +2,12 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getPrefillData, createDeclaration, type TariffRateDto, type LineItemRequest } from '@/api/declarations';
+import { getAttachments, deleteAttachment, type AttachmentDto } from '@/api/attachments';
+import { getDocumentTypes, type DocumentTypeDto } from '@/api/documentTypes';
 import { getOrigins, type OriginDto } from '@/api/origins';
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
 import { resolveTariffRate } from '@/api/tariffEstimate';
+import SupportingDocumentsSection from '@/components/SupportingDocumentsSection';
 
 interface LineForm {
   hsCode: string;
@@ -36,6 +39,13 @@ export default function CreateDeclarationPage() {
   const [customsOffice, setCustomsOffice] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Supporting documents state (available after creation)
+  const [createdId, setCreatedId] = useState<number | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
+  const [docTypes, setDocTypes] = useState<DocumentTypeDto[]>([]);
+  const [uploadType, setUploadType] = useState('COMMERCIAL_INVOICE');
+  const [uploading, setUploading] = useState(false);
+
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
@@ -58,6 +68,17 @@ export default function CreateDeclarationPage() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    getDocumentTypes().then(setDocTypes).catch(() => {});
+  }, []);
+
+  // Fetch attachments after declaration is created
+  useEffect(() => {
+    if (createdId) {
+      getAttachments(createdId).then(setAttachments).catch(() => {});
+    }
+  }, [createdId]);
 
   const calcTotal = (q: string, p: string) => {
     const qty = parseFloat(q) || 0;
@@ -115,11 +136,67 @@ export default function CreateDeclarationPage() {
         customsOffice,
         notes: notes || undefined,
       });
-      navigate(`/declarations/${result.id}`);
+      setCreatedId(result.id);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create declaration');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpload = async (formData: FormData) => {
+    if (!createdId) return;
+    setUploading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/declarations/${createdId}/attachments`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.data || 'Upload failed');
+      }
+      const atts = await getAttachments(createdId);
+      setAttachments(atts);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteAtt = async (attId: number) => {
+    if (!createdId) return;
+    try {
+      await deleteAttachment(createdId, attId);
+      setAttachments(attachments.filter((a) => a.id !== attId));
+    } catch {
+      setError('Failed to delete attachment');
+    }
+  };
+
+  const handleReplaceAtt = async (attId: number, file: File) => {
+    if (!createdId) return;
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/api/declarations/${createdId}/attachments/${attId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || json.data || 'Replace failed');
+      }
+      const attRes = await fetch(`/api/declarations/${createdId}/attachments`, { credentials: 'include' });
+      const attJson = await attRes.json();
+      setAttachments(attJson.data || []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to replace document');
     }
   };
 
@@ -146,111 +223,145 @@ export default function CreateDeclarationPage() {
             <span className="text-gray-300">|</span>
             <h1 className="text-lg font-bold text-gray-900">New Declaration</h1>
           </div>
+          {createdId && (
+            <Link to={`/declarations/${createdId}`}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">
+              View Declaration
+            </Link>
+          )}
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto p-6">
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
-        {company && (
+        {company && !createdId && (
           <div className="mb-4 bg-blue-50 border border-blue-200 text-blue-700 text-xs rounded-lg px-4 py-2">
             Declaring for: <strong>{company.name}</strong> (ICE: {company.ice || '—'})
           </div>
         )}
+        {createdId && (
+          <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-2">
+            Declaration created successfully! You can now upload supporting documents below, or <Link to={`/declarations/${createdId}`} className="underline font-medium">view the declaration</Link>.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Supporting Documents — shown after declaration is created */}
+          {createdId && (
+            <SupportingDocumentsSection
+              declarationId={createdId}
+              attachments={attachments}
+              docTypes={docTypes}
+              uploadType={uploadType}
+              setUploadType={setUploadType}
+              uploading={uploading}
+              setUploading={setUploading}
+              canEdit={true}
+              onUpload={handleUpload}
+              onDelete={handleDeleteAtt}
+              onReplace={handleReplaceAtt}
+              error={error}
+              setError={setError}
+            />
+          )}
+
           {/* Tariff rate picker */}
-          <section className="bg-white border border-gray-200 rounded-lg p-6">
-            <details className="text-sm text-gray-500 cursor-pointer">
-              <summary className="font-medium text-gray-700 mb-2">Reference Tariff Rates — click to expand</summary>
-              <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg mt-2">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-gray-50"><tr className="border-b border-gray-200">
-                    <th className="text-left px-3 py-1.5 font-medium">HS Code</th>
-                    <th className="text-left px-3 py-1.5 font-medium">Description</th>
-                    <th className="text-left px-3 py-1.5 font-medium">Origin</th>
-                    <th className="text-right px-3 py-1.5 font-medium">Duty</th>
-                    <th className="text-right px-3 py-1.5 font-medium">VAT</th>
-                  </tr></thead>
-                  <tbody>
-                    {tariffRates.map((r) => (
-                      <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
-                          onClick={() => { if (r.hsCode) setLineForm({ ...lineForm, hsCode: r.hsCode, description: r.description, unit: r.unit }); }}>
-                        <td className="px-3 py-1.5 font-mono">{r.hsCode || '—'}</td>
-                        <td className="px-3 py-1.5">{r.description}</td>
-                        <td className="px-3 py-1.5 text-gray-500">{r.originName || 'All'}</td>
-                        <td className="px-3 py-1.5 text-right">{r.dutyRate}%</td>
-                        <td className="px-3 py-1.5 text-right">{r.vatRate}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </details>
-          </section>
+          {!createdId && (
+            <section className="bg-white border border-gray-200 rounded-lg p-6">
+              <details className="text-sm text-gray-500 cursor-pointer">
+                <summary className="font-medium text-gray-700 mb-2">Reference Tariff Rates — click to expand</summary>
+                <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg mt-2">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-gray-50"><tr className="border-b border-gray-200">
+                      <th className="text-left px-3 py-1.5 font-medium">HS Code</th>
+                      <th className="text-left px-3 py-1.5 font-medium">Description</th>
+                      <th className="text-left px-3 py-1.5 font-medium">Origin</th>
+                      <th className="text-right px-3 py-1.5 font-medium">Duty</th>
+                      <th className="text-right px-3 py-1.5 font-medium">VAT</th>
+                    </tr></thead>
+                    <tbody>
+                      {tariffRates.map((r) => (
+                        <tr key={r.id} className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                            onClick={() => { if (r.hsCode) setLineForm({ ...lineForm, hsCode: r.hsCode, description: r.description, unit: r.unit }); }}>
+                          <td className="px-3 py-1.5 font-mono">{r.hsCode || '—'}</td>
+                          <td className="px-3 py-1.5">{r.description}</td>
+                          <td className="px-3 py-1.5 text-gray-500">{r.originName || 'All'}</td>
+                          <td className="px-3 py-1.5 text-right">{r.dutyRate}%</td>
+                          <td className="px-3 py-1.5 text-right">{r.vatRate}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            </section>
+          )}
 
           {/* Add line item form */}
-          <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Add Goods Line</h2>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">HS Code *</label>
-                <input type="text" value={lineForm.hsCode} onChange={(e) => setLineForm({ ...lineForm, hsCode: e.target.value })}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g. 8471.30" />
+          {!createdId && (
+            <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900">Add Goods Line</h2>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">HS Code *</label>
+                  <input type="text" value={lineForm.hsCode} onChange={(e) => setLineForm({ ...lineForm, hsCode: e.target.value })}
+                    className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g. 8471.30" />
+                </div>
+                <div className="md:col-span-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Description *</label>
+                  <input type="text" value={lineForm.description} onChange={(e) => setLineForm({ ...lineForm, description: e.target.value })}
+                    className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+                </div>
               </div>
-              <div className="md:col-span-3">
-                <label className="block text-xs font-medium text-gray-700 mb-1">Description *</label>
-                <input type="text" value={lineForm.description} onChange={(e) => setLineForm({ ...lineForm, description: e.target.value })}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Origin</label>
+                  <select value={lineForm.countryOfOrigin} onChange={(e) => setLineForm({ ...lineForm, countryOfOrigin: e.target.value })}
+                    className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option value="">— Select origin —</option>
+                    {origins.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Qty *</label>
+                  <input type="number" step="0.001" value={lineForm.quantity}
+                    onChange={(e) => {
+                      setLineForm({ ...lineForm, quantity: e.target.value, totalValue: calcTotal(e.target.value, lineForm.unitPrice) });
+                    }}
+                    className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Unit</label>
+                  <input type="text" value={lineForm.unit} onChange={(e) => setLineForm({ ...lineForm, unit: e.target.value })}
+                    className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Unit Price *</label>
+                  <input type="number" step="0.001" value={lineForm.unitPrice}
+                    onChange={(e) => {
+                      setLineForm({ ...lineForm, unitPrice: e.target.value, totalValue: calcTotal(lineForm.quantity, e.target.value) });
+                    }}
+                    className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Total</label>
+                  <input type="number" step="0.01" value={calcTotal(lineForm.quantity, lineForm.unitPrice)} readOnly
+                    className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Curr</label>
+                  <select value={lineForm.currency} onChange={(e) => setLineForm({ ...lineForm, currency: e.target.value })}
+                    className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm">
+                    <option>MAD</option><option>EUR</option><option>USD</option>
+                  </select>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Origin</label>
-                <select value={lineForm.countryOfOrigin} onChange={(e) => setLineForm({ ...lineForm, countryOfOrigin: e.target.value })}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option value="">— Select origin —</option>
-                  {origins.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Qty *</label>
-                <input type="number" step="0.001" value={lineForm.quantity}
-                  onChange={(e) => {
-                    setLineForm({ ...lineForm, quantity: e.target.value, totalValue: calcTotal(e.target.value, lineForm.unitPrice) });
-                  }}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Unit</label>
-                <input type="text" value={lineForm.unit} onChange={(e) => setLineForm({ ...lineForm, unit: e.target.value })}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Unit Price *</label>
-                <input type="number" step="0.001" value={lineForm.unitPrice}
-                  onChange={(e) => {
-                    setLineForm({ ...lineForm, unitPrice: e.target.value, totalValue: calcTotal(lineForm.quantity, e.target.value) });
-                  }}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Total</label>
-                <input type="number" step="0.01" value={calcTotal(lineForm.quantity, lineForm.unitPrice)} readOnly
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50 text-gray-700" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Curr</label>
-                <select value={lineForm.currency} onChange={(e) => setLineForm({ ...lineForm, currency: e.target.value })}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm">
-                  <option>MAD</option><option>EUR</option><option>USD</option>
-                </select>
-              </div>
-            </div>
-            <button type="button" onClick={handleAddLine}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
-              + Add Goods Line
-            </button>
-          </section>
+              <button type="button" onClick={handleAddLine}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+                + Add Goods Line
+              </button>
+            </section>
+          )}
 
           {/* Lines table with estimates */}
           {lines.length > 0 && (
@@ -285,7 +396,9 @@ export default function CreateDeclarationPage() {
                         <td className="px-3 py-2 text-right text-blue-700">{est.vatAmount.toFixed(2)} <span className="text-xs text-gray-400">({est.vatRate}%)</span></td>
                         <td className="px-3 py-2 text-center text-xs text-gray-500">{li.currency}</td>
                         <td className="px-3 py-2 text-center">
-                          <button type="button" onClick={() => handleRemoveLine(i)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
+                          {!createdId && (
+                            <button type="button" onClick={() => handleRemoveLine(i)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -306,7 +419,7 @@ export default function CreateDeclarationPage() {
           )}
 
           {/* Estimated duties summary */}
-          {lines.length > 0 && (
+          {lines.length > 0 && !createdId && (
             <section className="bg-amber-50 border border-amber-200 rounded-lg p-6">
               <h2 className="font-semibold text-amber-900 mb-3">Estimated Duties &amp; Taxes</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -325,32 +438,36 @@ export default function CreateDeclarationPage() {
           )}
 
           {/* Customs info */}
-          <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Customs Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
-                <select value={customsOffice} onChange={(e) => { setCustomsOffice(e.target.value); if (error) setError(''); }} required
-                  className={`w-full px-3 py-2 rounded-lg text-sm ${!customsOffice ? 'border-red-300 bg-red-50' : 'border border-gray-300'}`}>
-                  <option value="">— Select customs office —</option>
-                  {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
-                </select>
+          {!createdId && (
+            <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900">Customs Information</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
+                  <select value={customsOffice} onChange={(e) => { setCustomsOffice(e.target.value); if (error) setError(''); }} required
+                    className={`w-full px-3 py-2 rounded-lg text-sm ${!customsOffice ? 'border-red-300 bg-red-50' : 'border border-gray-300'}`}>
+                    <option value="">— Select customs office —</option>
+                    {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                </div>
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
-          <div className="flex justify-end gap-3">
-            <Link to="/declarations" className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</Link>
-            <button type="submit" disabled={saving || lines.length === 0}
-              className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors">
-              {saving ? 'Creating...' : `Create Declaration (${lines.length} line${lines.length !== 1 ? 's' : ''})`}
-            </button>
-          </div>
+          {!createdId && (
+            <div className="flex justify-end gap-3">
+              <Link to="/declarations" className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</Link>
+              <button type="submit" disabled={saving || lines.length === 0}
+                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                {saving ? 'Creating...' : `Create Declaration (${lines.length} line${lines.length !== 1 ? 's' : ''})`}
+              </button>
+            </div>
+          )}
         </form>
       </main>
     </div>

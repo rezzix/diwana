@@ -2,9 +2,12 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { getDeclaration, updateDeclaration, getPrefillData, type TariffRateDto, type LineItemRequest } from '@/api/declarations';
-import { getOrigins, type OriginDto } from "@/api/origins";
+import { getOrigins, type OriginDto } from '@/api/origins';
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
+import { getAttachments, deleteAttachment, type AttachmentDto } from '@/api/attachments';
+import { getDocumentTypes, type DocumentTypeDto } from '@/api/documentTypes';
 import { resolveTariffRate } from '@/api/tariffEstimate';
+import SupportingDocumentsSection from '@/components/SupportingDocumentsSection';
 
 interface LineForm {
   hsCode: string;
@@ -36,6 +39,12 @@ export default function EditDeclarationPage() {
   const [lineForm, setLineForm] = useState<LineForm>(emptyLine());
   const [customsOffice, setCustomsOffice] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Supporting documents state
+  const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
+  const [docTypes, setDocTypes] = useState<DocumentTypeDto[]>([]);
+  const [uploadType, setUploadType] = useState('COMMERCIAL_INVOICE');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -73,6 +82,12 @@ export default function EditDeclarationPage() {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    getAttachments(Number(id)).then(setAttachments).catch(() => {});
+    getDocumentTypes().then(setDocTypes).catch(() => {});
   }, [id]);
 
   const calcTotal = (q: string, p: string) => ((parseFloat(q) || 0) * (parseFloat(p) || 0)).toFixed(2);
@@ -126,6 +141,62 @@ export default function EditDeclarationPage() {
     }
   };
 
+  const handleUpload = async (formData: FormData) => {
+    if (!id) return;
+    setUploading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/declarations/${id}/attachments`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.data || 'Upload failed');
+      }
+      const atts = await getAttachments(Number(id));
+      setAttachments(atts);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteAtt = async (attId: number) => {
+    if (!id) return;
+    try {
+      await deleteAttachment(Number(id), attId);
+      setAttachments(attachments.filter((a) => a.id !== attId));
+    } catch {
+      setError('Failed to delete attachment');
+    }
+  };
+
+  const handleReplaceAtt = async (attId: number, file: File) => {
+    if (!id) return;
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/api/declarations/${id}/attachments/${attId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.message || json.data || 'Replace failed');
+      }
+      const attRes = await fetch(`/api/declarations/${id}/attachments`, { credentials: 'include' });
+      const attJson = await attRes.json();
+      setAttachments(attJson.data || []);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to replace document');
+    }
+  };
+
   const totals = lines.reduce((acc, li) => {
     const est = resolveTariffRate(li.hsCode, li.countryOfOrigin, li.totalValue, tariffRates);
     return {
@@ -157,6 +228,23 @@ export default function EditDeclarationPage() {
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Supporting Documents */}
+          <SupportingDocumentsSection
+            declarationId={Number(id)}
+            attachments={attachments}
+            docTypes={docTypes}
+            uploadType={uploadType}
+            setUploadType={setUploadType}
+            uploading={uploading}
+            setUploading={setUploading}
+            canEdit={true}
+            onUpload={handleUpload}
+            onDelete={handleDeleteAtt}
+            onReplace={handleReplaceAtt}
+            error={error}
+            setError={setError}
+          />
+
           {/* Add line */}
           <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
             <h2 className="font-semibold text-gray-900">Add Goods Line</h2>
@@ -184,7 +272,9 @@ export default function EditDeclarationPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Qty *</label>
                 <input type="number" step="0.001" value={lineForm.quantity}
-                  onChange={(e) => { setLineForm({ ...lineForm, quantity: e.target.value, totalValue: calcTotal(e.target.value, lineForm.unitPrice) }); }}
+                  onChange={(e) => {
+                    setLineForm({ ...lineForm, quantity: e.target.value, totalValue: calcTotal(e.target.value, lineForm.unitPrice) });
+                  }}
                   className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
               </div>
               <div>
@@ -195,7 +285,9 @@ export default function EditDeclarationPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Unit Price *</label>
                 <input type="number" step="0.001" value={lineForm.unitPrice}
-                  onChange={(e) => { setLineForm({ ...lineForm, unitPrice: e.target.value, totalValue: calcTotal(lineForm.quantity, e.target.value) }); }}
+                  onChange={(e) => {
+                    setLineForm({ ...lineForm, unitPrice: e.target.value, totalValue: calcTotal(lineForm.quantity, e.target.value) });
+                  }}
                   className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
               </div>
               <div>
