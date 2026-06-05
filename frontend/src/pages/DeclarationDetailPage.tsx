@@ -388,7 +388,12 @@ export default function DeclarationDetailPage() {
           <section className="bg-red-50 border border-red-200 rounded-lg p-6">
             <h2 className="font-semibold text-red-900 mb-2">Rejection Reason</h2>
             <p className="text-sm text-red-700 whitespace-pre-wrap">{decl.rejectionReason}</p>
-            <p className="mt-3 text-xs text-red-500">You can correct the declaration and resubmit it for review.</p>
+            {isOwner && (
+              <p className="mt-3 text-xs text-red-500">You can correct the declaration and resubmit it for review.</p>
+            )}
+            {isController && (
+              <p className="mt-3 text-xs text-red-500">The declarant has been notified and can correct and resubmit the declaration.</p>
+            )}
           </section>
         )}
 
@@ -397,7 +402,12 @@ export default function DeclarationDetailPage() {
           <section className="bg-purple-50 border border-purple-200 rounded-lg p-6">
             <h2 className="font-semibold text-purple-900 mb-2">Additional Information Requested</h2>
             <p className="text-sm text-purple-700 whitespace-pre-wrap">{decl.infoRequestNote}</p>
-            <p className="mt-3 text-xs text-purple-500">The customs controller has requested additional information. You can edit the declaration to provide it, then resubmit.</p>
+            {isOwner && (
+              <p className="mt-3 text-xs text-purple-500">The customs controller has requested additional information. You can edit the declaration to provide it, then resubmit.</p>
+            )}
+            {isController && (
+              <p className="mt-3 text-xs text-purple-500">This declaration is awaiting the declarant's response.</p>
+            )}
           </section>
         )}
 
