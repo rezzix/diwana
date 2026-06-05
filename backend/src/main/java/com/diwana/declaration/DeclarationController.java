@@ -188,7 +188,7 @@ public class DeclarationController {
                         company.getBankSwift(),
                         company.getCustomsCode()
                 ) : null,
-                tariffRates.stream().map(t -> new TariffRateDto(
+                tariffRates.stream().map(t -> new com.diwana.tariff.TariffRateDto(
                         t.getId(), t.getHsCode(), t.getDescription(),
                         t.getDutyRate(), t.getVatRate(), t.getUnit(),
                         t.getOrigin() != null ? t.getOrigin().getCode() : null,
@@ -198,17 +198,11 @@ public class DeclarationController {
         return ResponseEntity.ok(ApiResponse.of(data));
     }
 
-    public record PrefillData(CompanyPrefill company, List<TariffRateDto> tariffRates) {}
+    public record PrefillData(CompanyPrefill company, List<com.diwana.tariff.TariffRateDto> tariffRates) {}
 
     public record CompanyPrefill(
             String name, String ice, String rc, String nif, String vatNumber,
             String address, String phone, String email,
             String bankName, String bankIban, String bankSwift, String customsCode
-    ) {}
-
-    public record TariffRateDto(
-            Long id, String hsCode, String description,
-            java.math.BigDecimal dutyRate, java.math.BigDecimal vatRate, String unit,
-            String originCode, String originName
     ) {}
 }

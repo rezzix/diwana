@@ -39,6 +39,7 @@ export default function EditDeclarationPage() {
   const [lineForm, setLineForm] = useState<LineForm>(emptyLine());
   const [customsOffice, setCustomsOffice] = useState('');
   const [notes, setNotes] = useState('');
+  const [company, setCompany] = useState<{ name: string; ice: string | null } | null>(null);
 
   // Supporting documents state
   const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
@@ -56,6 +57,7 @@ export default function EditDeclarationPage() {
         setOrigins(originData);
         setTariffRates(prefillData.tariffRates);
         setCustomsOffices(officeData);
+        setCompany(prefillData.company ? { name: prefillData.company.name, ice: prefillData.company.ice } : null);
       }).catch((err) => {
         if (axios.isCancel(err)) return;
       });
@@ -228,6 +230,33 @@ export default function EditDeclarationPage() {
         {error && <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Compact summary: company + customs info */}
+          <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            {company && (
+              <>
+                <span className="text-gray-500">Company:</span>
+                <span className="font-medium text-gray-900">{company.name}</span>
+                {company.ice && (
+                  <>
+                    <span className="text-gray-300">|</span>
+                    <span className="text-gray-500">ICE:</span>
+                    <span className="text-gray-700">{company.ice}</span>
+                  </>
+                )}
+              </>
+            )}
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">Customs Office:</span>
+            <span className="font-medium text-gray-900">{customsOffice}</span>
+            {notes && (
+              <>
+                <span className="text-gray-300">|</span>
+                <span className="text-gray-500">Notes:</span>
+                <span className="text-gray-700">{notes}</span>
+              </>
+            )}
+          </div>
+
           {/* Supporting Documents */}
           <SupportingDocumentsSection
             declarationId={Number(id)}
@@ -247,7 +276,13 @@ export default function EditDeclarationPage() {
 
           {/* Add line */}
           <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Add Goods Line</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Add Goods Line</h2>
+              <Link to="/tariff-rates" target="_blank" rel="noopener noreferrer"
+                className="text-xs text-primary-600 hover:underline">
+                📋 View Reference Tariff Rates
+              </Link>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">HS Code *</label>
@@ -380,25 +415,6 @@ export default function EditDeclarationPage() {
               <p className="mt-2 text-xs text-amber-600">These are indicative estimates based on current tariff rates. Final amounts are determined upon customs review.</p>
             </section>
           )}
-
-          <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-            <h2 className="font-semibold text-gray-900">Customs Information</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Customs Office <span className="text-red-500">*</span></label>
-                <select value={customsOffice} onChange={(e) => { setCustomsOffice(e.target.value); if (error) setError(''); }} required
-                  className={`w-full px-3 py-2 rounded-lg text-sm ${!customsOffice ? 'border-red-300 bg-red-50' : 'border border-gray-300'}`}>
-                  <option value="">— Select customs office —</option>
-                  {customsOffices.map((o) => <option key={o.code} value={o.name}>{o.name}</option>)}
-                </select>
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-              </div>
-            </div>
-          </section>
 
           <div className="flex justify-end gap-3">
             <Link to={`/declarations/${id}`}
