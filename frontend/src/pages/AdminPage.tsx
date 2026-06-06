@@ -5,6 +5,10 @@ import { listUsers, createUser, deactivateUser, type CreateUserRequest } from '@
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
 import { listCompanies, type CompanyDto } from '@/api/companies';
 import { getAllDocumentTypes, createDocumentType, updateDocumentType, deleteDocumentType, formatMandatoryFor, type DocumentTypeDto } from '@/api/documentTypes';
+import { getAllTariffRates, createTariffRate, updateTariffRate, deactivateTariffRate } from '@/api/tariffRates';
+import type { TariffRateDto } from '@/api/declarations';
+import { getOrigins, type OriginDto } from '@/api/origins';
+import HsCodeAutocomplete from '@/components/HsCodeAutocomplete';
 import type { UserDto, PaginationInfo } from '@/types';
 
 const roleBadge: Record<string, string> = {
@@ -15,7 +19,7 @@ const roleBadge: Record<string, string> = {
 
 export default function AdminPage() {
   // Tab navigation
-  const [activeTab, setActiveTab] = useState<'users' | 'document-types'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'document-types' | 'tariff-rates'>('users');
 
   // Users state
   const [users, setUsers] = useState<UserDto[]>([]);
@@ -52,6 +56,16 @@ export default function AdminPage() {
   const [editingDocType, setEditingDocType] = useState<DocumentTypeDto | null>(null);
   const [editDocTypeForm, setEditDocTypeForm] = useState({ code: '', name: '', description: '', mandatoryFor: '', importOrder: '', active: true });
 
+  // Tariff rates state
+  const [tariffRates, setTariffRates] = useState<TariffRateDto[]>([]);
+  const [tariffRatesLoading, setTariffRatesLoading] = useState(true);
+  const [origins, setOrigins] = useState<OriginDto[]>([]);
+  const [showCreateTariffRate, setShowCreateTariffRate] = useState(false);
+  const [tariffRateForm, setTariffRateForm] = useState({ originCode: '', hsCode: '', description: '', dutyRate: '', vatRate: '', unit: '' });
+  const [tariffRateCreating, setTariffRateCreating] = useState(false);
+  const [editingTariffRate, setEditingTariffRate] = useState<TariffRateDto | null>(null);
+  const [editTariffRateForm, setEditTariffRateForm] = useState({ originCode: '', hsCode: '', description: '', dutyRate: '', vatRate: '', unit: '', active: true });
+
   const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
@@ -83,6 +97,18 @@ export default function AdminPage() {
     }
   };
 
+  const fetchTariffRates = async () => {
+    setTariffRatesLoading(true);
+    try {
+      const data = await getAllTariffRates();
+      setTariffRates(data);
+    } catch {
+      setError('Failed to load tariff rates');
+    } finally {
+      setTariffRatesLoading(false);
+    }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     fetchUsers(controller.signal);
@@ -103,12 +129,23 @@ export default function AdminPage() {
         if (!controller.signal.aborted) setCompanies(data);
       })
       .catch(() => {});
+    getOrigins()
+      .then((data) => {
+        if (!controller.signal.aborted) setOrigins(data);
+      })
+      .catch(() => {});
     return () => controller.abort();
   }, []);
 
   useEffect(() => {
     if (activeTab === 'document-types') {
       fetchDocTypes();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'tariff-rates') {
+      fetchTariffRates();
     }
   }, [activeTab]);
 
@@ -213,6 +250,81 @@ export default function AdminPage() {
     }
   };
 
+  // Tariff rate handlers
+  const handleCreateTariffRate = async (e: FormEvent) => {
+    e.preventDefault();
+    setTariffRateCreating(true);
+    setError('');
+    setSuccess('');
+    try {
+      await createTariffRate({
+        originCode: tariffRateForm.originCode || undefined,
+        hsCode: tariffRateForm.hsCode,
+        description: tariffRateForm.description,
+        dutyRate: Number(tariffRateForm.dutyRate),
+        vatRate: Number(tariffRateForm.vatRate),
+        unit: tariffRateForm.unit || undefined,
+      });
+      setSuccess(`Tariff rate for "${tariffRateForm.hsCode}" created`);
+      setShowCreateTariffRate(false);
+      setTariffRateForm({ originCode: '', hsCode: '', description: '', dutyRate: '', vatRate: '', unit: '' });
+      fetchTariffRates();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create tariff rate');
+    } finally {
+      setTariffRateCreating(false);
+    }
+  };
+
+  const handleEditTariffRate = (tr: TariffRateDto) => {
+    setEditingTariffRate(tr);
+    setEditTariffRateForm({
+      originCode: tr.originCode || '',
+      hsCode: tr.hsCode || '',
+      description: tr.description,
+      dutyRate: String(tr.dutyRate),
+      vatRate: String(tr.vatRate),
+      unit: tr.unit || '',
+      active: tr.active,
+    });
+  };
+
+  const handleUpdateTariffRate = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingTariffRate) return;
+    setError('');
+    setSuccess('');
+    try {
+      await updateTariffRate(editingTariffRate.id, {
+        originCode: editTariffRateForm.originCode || undefined,
+        hsCode: editTariffRateForm.hsCode,
+        description: editTariffRateForm.description,
+        dutyRate: Number(editTariffRateForm.dutyRate),
+        vatRate: Number(editTariffRateForm.vatRate),
+        unit: editTariffRateForm.unit || undefined,
+        active: editTariffRateForm.active,
+      });
+      setSuccess(`Tariff rate for "${editTariffRateForm.hsCode}" updated`);
+      setEditingTariffRate(null);
+      fetchTariffRates();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update tariff rate');
+    }
+  };
+
+  const handleDeactivateTariffRate = async (tr: TariffRateDto) => {
+    if (!confirm(`Deactivate tariff rate for "${tr.hsCode || 'default'}"?`)) return;
+    setError('');
+    setSuccess('');
+    try {
+      await deactivateTariffRate(tr.id);
+      setSuccess(`Tariff rate for "${tr.hsCode || 'default'}" deactivated`);
+      fetchTariffRates();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to deactivate tariff rate');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface">
       <header className="bg-white border-b border-gray-200 px-6 py-3">
@@ -250,6 +362,14 @@ export default function AdminPage() {
             }`}
           >
             Document Types
+          </button>
+          <button
+            onClick={() => setActiveTab('tariff-rates')}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'tariff-rates' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Tariff Rates
           </button>
         </div>
 
@@ -605,6 +725,202 @@ export default function AdminPage() {
                         </button>
                         {dt.active && (
                           <button onClick={() => handleDeleteDocType(dt)}
+                            className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
+                            Deactivate
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* Tariff Rates tab */}
+        {activeTab === 'tariff-rates' && (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Manage tariff rates for duty and VAT calculation.</p>
+              <button
+                onClick={() => { setShowCreateTariffRate(!showCreateTariffRate); setEditingTariffRate(null); }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
+              >
+                {showCreateTariffRate ? 'Cancel' : '+ Add Tariff Rate'}
+              </button>
+            </div>
+
+            {showCreateTariffRate && (
+              <form onSubmit={handleCreateTariffRate} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                <h2 className="font-semibold text-gray-900">Add Tariff Rate</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Origin</label>
+                    <select value={tariffRateForm.originCode}
+                      onChange={(e) => setTariffRateForm({ ...tariffRateForm, originCode: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="">None (global default)</option>
+                      {origins.map((o) => <option key={o.code} value={o.code}>{o.name} ({o.code})</option>)}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-400">Leave empty for rates that apply regardless of origin</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">HS Code *</label>
+                    <HsCodeAutocomplete
+                      tariffRates={tariffRates}
+                      value={tariffRateForm.hsCode}
+                      onChange={(v) => setTariffRateForm({ ...tariffRateForm, hsCode: v })}
+                      onSelect={(_code, desc) => setTariffRateForm({ ...tariffRateForm, description: desc || tariffRateForm.description })}
+                      placeholder="e.g. 8471.30"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                    <input type="text" required value={tariffRateForm.description}
+                      onChange={(e) => setTariffRateForm({ ...tariffRateForm, description: e.target.value })}
+                      placeholder="e.g. Automatic data processing machines"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Duty Rate (%) *</label>
+                    <input type="number" step="0.01" min="0" required value={tariffRateForm.dutyRate}
+                      onChange={(e) => setTariffRateForm({ ...tariffRateForm, dutyRate: e.target.value })}
+                      placeholder="e.g. 5.00"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">VAT Rate (%) *</label>
+                    <input type="number" step="0.01" min="0" required value={tariffRateForm.vatRate}
+                      onChange={(e) => setTariffRateForm({ ...tariffRateForm, vatRate: e.target.value })}
+                      placeholder="e.g. 20.00"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                    <input type="text" value={tariffRateForm.unit}
+                      onChange={(e) => setTariffRateForm({ ...tariffRateForm, unit: e.target.value })}
+                      placeholder="e.g. kg, pc, m²"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-gray-400">Measurement unit for specific duties</p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="submit" disabled={tariffRateCreating}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                    {tariffRateCreating ? 'Creating...' : 'Create'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {editingTariffRate && (
+              <form onSubmit={handleUpdateTariffRate} className="bg-amber-50 border border-amber-200 rounded-lg p-6 space-y-4">
+                <h2 className="font-semibold text-amber-900">Edit Tariff Rate</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Origin</label>
+                    <select value={editTariffRateForm.originCode}
+                      onChange={(e) => setEditTariffRateForm({ ...editTariffRateForm, originCode: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="">None (global default)</option>
+                      {origins.map((o) => <option key={o.code} value={o.code}>{o.name} ({o.code})</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">HS Code *</label>
+                    <HsCodeAutocomplete
+                      tariffRates={tariffRates}
+                      value={editTariffRateForm.hsCode}
+                      onChange={(v) => setEditTariffRateForm({ ...editTariffRateForm, hsCode: v })}
+                      onSelect={(_code, desc) => setEditTariffRateForm({ ...editTariffRateForm, description: desc || editTariffRateForm.description })}
+                      placeholder="e.g. 8471.30"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                    <input type="text" required value={editTariffRateForm.description}
+                      onChange={(e) => setEditTariffRateForm({ ...editTariffRateForm, description: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Duty Rate (%) *</label>
+                    <input type="number" step="0.01" min="0" required value={editTariffRateForm.dutyRate}
+                      onChange={(e) => setEditTariffRateForm({ ...editTariffRateForm, dutyRate: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">VAT Rate (%) *</label>
+                    <input type="number" step="0.01" min="0" required value={editTariffRateForm.vatRate}
+                      onChange={(e) => setEditTariffRateForm({ ...editTariffRateForm, vatRate: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                    <input type="text" value={editTariffRateForm.unit}
+                      onChange={(e) => setEditTariffRateForm({ ...editTariffRateForm, unit: e.target.value })}
+                      placeholder="e.g. kg, pc, m²"
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={editTariffRateForm.active}
+                        onChange={(e) => setEditTariffRateForm({ ...editTariffRateForm, active: e.target.checked })}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      <span className="text-sm text-gray-700">Active</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setEditingTariffRate(null)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                  </button>
+                  <button type="submit"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                    Save
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">HS Code</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Description</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Origin</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-700">Duty %</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-700">VAT %</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Unit</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tariffRatesLoading ? (
+                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                  ) : tariffRates.length === 0 ? (
+                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">No tariff rates found</td></tr>
+                  ) : tariffRates.map((tr) => (
+                    <tr key={tr.id} className={`border-b border-gray-100 hover:bg-gray-50 ${!tr.active ? 'opacity-50' : ''}`}>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-600">{tr.hsCode || '—'}</td>
+                      <td className="px-4 py-3 text-gray-900">{tr.description}</td>
+                      <td className="px-4 py-3 text-gray-600">{tr.originName || <span className="text-gray-400 italic">Global</span>}</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{tr.dutyRate}%</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{tr.vatRate}%</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{tr.unit || '—'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block w-2 h-2 rounded-full ${tr.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                      </td>
+                      <td className="px-4 py-3 text-right space-x-2">
+                        <button onClick={() => { handleEditTariffRate(tr); setShowCreateTariffRate(false); }}
+                          className="text-xs px-2 py-1 bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition-colors">
+                          Edit
+                        </button>
+                        {tr.active && (
+                          <button onClick={() => handleDeactivateTariffRate(tr)}
                             className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
                             Deactivate
                           </button>

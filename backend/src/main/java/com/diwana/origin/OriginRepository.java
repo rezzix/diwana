@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface OriginRepository extends JpaRepository<Origin, Long> {
     List<Origin> findAllByOrderByNameAsc();
     Optional<Origin> findByName(String name);
+    Optional<Origin> findByCode(String code);
 }

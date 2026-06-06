@@ -192,7 +192,8 @@ public class DeclarationController {
                         t.getId(), t.getHsCode(), t.getDescription(),
                         t.getDutyRate(), t.getVatRate(), t.getUnit(),
                         t.getOrigin() != null ? t.getOrigin().getCode() : null,
-                        t.getOrigin() != null ? t.getOrigin().getName() : null
+                        t.getOrigin() != null ? t.getOrigin().getName() : null,
+                        t.isActive()
                 )).toList()
         );
         return ResponseEntity.ok(ApiResponse.of(data));

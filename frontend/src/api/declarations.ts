@@ -24,6 +24,7 @@ export interface TariffRateDto {
   unit: string;
   originCode: string | null;
   originName: string | null;
+  active: boolean;
 }
 
 export interface PrefillData {
