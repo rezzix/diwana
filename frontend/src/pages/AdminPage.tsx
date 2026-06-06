@@ -590,7 +590,7 @@ export default function AdminPage() {
                         <span className={`inline-block w-2 h-2 rounded-full ${dt.active ? 'bg-green-500' : 'bg-red-500'}`} />
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
-                        <button onClick={() => { setEditingDocType(dt); setShowCreateDocType(false); }}
+                        <button onClick={() => { handleEditDocType(dt); setShowCreateDocType(false); }}
                           className="text-xs px-2 py-1 bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition-colors">
                           Edit
                         </button>
