@@ -5,6 +5,7 @@ const client = axios.create({
   baseURL: '/api',
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
+  timeout: 600000, // 10 min — VLM calls can take minutes
 });
 
 export async function apiGet<T>(url: string, params?: Record<string, string | number>, signal?: AbortSignal): Promise<T> {

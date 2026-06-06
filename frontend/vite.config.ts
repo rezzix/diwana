@@ -15,6 +15,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+        timeout: 600000, // 10 min — VLM calls can take minutes
       },
       '/ws': {
         target: 'http://localhost:8080',
