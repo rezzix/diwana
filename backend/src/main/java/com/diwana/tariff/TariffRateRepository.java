@@ -31,4 +31,7 @@ public interface TariffRateRepository extends JpaRepository<TariffRate, Long> {
 
     // All active rates for reference lookup
     List<TariffRate> findAllByActiveTrueOrderByIdAsc();
+
+    // All rates for admin management
+    List<TariffRate> findAllByOrderByIdAsc();
 }
