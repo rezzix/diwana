@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { listUsers, createUser, deactivateUser, type CreateUserRequest } from '@/api/users';
 import { getCustomsOffices, type CustomsOfficeDto } from '@/api/customsOffices';
+import { listCompanies, type CompanyDto } from '@/api/companies';
 import { getAllDocumentTypes, createDocumentType, updateDocumentType, deleteDocumentType, formatMandatoryFor, type DocumentTypeDto } from '@/api/documentTypes';
 import type { UserDto, PaginationInfo } from '@/types';
 
@@ -29,6 +30,7 @@ export default function AdminPage() {
   // Create user form
   const [showCreate, setShowCreate] = useState(false);
   const [customsOffices, setCustomsOffices] = useState<CustomsOfficeDto[]>([]);
+  const [companies, setCompanies] = useState<CompanyDto[]>([]);
   const [form, setForm] = useState({
     username: '',
     email: '',
@@ -96,6 +98,11 @@ export default function AdminPage() {
       .catch((err) => {
         if (axios.isCancel(err)) return;
       });
+    listCompanies()
+      .then((data) => {
+        if (!controller.signal.aborted) setCompanies(data);
+      })
+      .catch(() => {});
     return () => controller.abort();
   }, []);
 
@@ -324,11 +331,13 @@ export default function AdminPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Company ID {form.role === 'DECLARANT' ? '*' : '(optional)'}</label>
-                    <input type="number" value={form.companyId}
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Company {form.role === 'DECLARANT' ? '*' : '(optional)'}</label>
+                    <select value={form.companyId}
                       onChange={(e) => setForm({ ...form, companyId: e.target.value })}
-                      placeholder={form.role === 'DECLARANT' ? 'Required for declarants' : 'Not needed for controllers'}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="">{form.role === 'DECLARANT' ? 'Select company...' : 'Not needed for controllers'}</option>
+                      {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
                   </div>
                   {form.role === 'CONTROLLER' && (
                     <div>

@@ -19,6 +19,11 @@ public class CompanyService {
                 .orElseThrow(() -> new EntityNotFoundException("Company", id));
     }
 
+    @Transactional(readOnly = true)
+    public java.util.List<Company> listAll() {
+        return companyRepository.findAll();
+    }
+
     @Transactional
     public Company update(Long id, CompanyDto.UpdateRequest request) {
         Company company = getById(id);
