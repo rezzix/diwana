@@ -1,6 +1,55 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { getAttachmentViewUrl, getAttachmentDownloadUrl, markAttachmentImported, type AttachmentDto } from '@/api/attachments';
 import { formatMandatoryFor, type DocumentTypeDto } from '@/api/documentTypes';
+
+function EditActionsDropdown({ onReplace, onDelete, canImport, importDisabled, importTitle, onImport }: {
+  onReplace: () => void;
+  onDelete: () => void;
+  canImport: boolean;
+  importDisabled: boolean;
+  importTitle: string;
+  onImport: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button onClick={() => setOpen(!open)}
+        className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors">
+        Edit ▾
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
+          <button onClick={() => { setOpen(false); onReplace(); }}
+            className="w-full text-left px-3 py-1.5 text-xs text-amber-700 hover:bg-amber-50 transition-colors">
+            Replace
+          </button>
+          <button onClick={() => { setOpen(false); onDelete(); }}
+            className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors">
+            Delete
+          </button>
+          {canImport && (
+            <button onClick={() => { setOpen(false); onImport(); }}
+              disabled={importDisabled}
+              title={importTitle}
+              className="w-full text-left px-3 py-1.5 text-xs text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+              Import
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DocumentViewer({ attachment, declarationId, onClose }: {
   attachment: AttachmentDto;
@@ -300,30 +349,18 @@ export default function SupportingDocumentsSection({
                           Download
                         </a>
                         {canEdit && (
-                          <button onClick={() => triggerReplace(row.attachment!.id)}
-                            className="text-xs px-2 py-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-100 transition-colors">
-                            Replace
-                          </button>
-                        )}
-                        {canEdit && (
-                          <button onClick={() => handleDelete(row.attachment!.id)}
-                            className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
-                            Delete
-                          </button>
-                        )}
-                        {/* Import button — only for doc types with importOrder */}
-                        {row.docType.importOrder != null && !row.attachment.imported && (
-                          <button
-                            onClick={() => handleMarkImported(row.attachment!.id)}
-                            disabled={!canImport(row.docType.code)}
-                            title={
+                          <EditActionsDropdown
+                            onReplace={() => triggerReplace(row.attachment!.id)}
+                            onDelete={() => handleDelete(row.attachment!.id)}
+                            canImport={row.docType.importOrder != null && !row.attachment.imported}
+                            importDisabled={row.docType.importOrder != null && !row.attachment.imported && !canImport(row.docType.code)}
+                            importTitle={
                               canImport(row.docType.code)
                                 ? 'Mark as imported'
                                 : 'Higher-priority documents must be imported first'
                             }
-                            className="text-xs px-2 py-1 bg-green-50 text-green-600 rounded hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                            Import
-                          </button>
+                            onImport={() => handleMarkImported(row.attachment!.id)}
+                          />
                         )}
                       </td>
                     </>
