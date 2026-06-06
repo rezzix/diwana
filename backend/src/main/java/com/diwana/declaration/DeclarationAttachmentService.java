@@ -139,6 +139,13 @@ public class DeclarationAttachmentService {
         attachment.setFileSize(file.getSize());
         attachment.setUploadedBy(userId);
 
+        // Clear VLM data from previous document — it's no longer valid for the new file
+        attachment.setVlmText(null);
+        attachment.setVlmModel(null);
+        attachment.setVlmUrl(null);
+        attachment.setVlmProcessingTimeMs(null);
+        attachment.setImported(false);
+
         return attachmentRepository.save(attachment);
     }
 
