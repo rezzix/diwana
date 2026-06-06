@@ -71,4 +71,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.of(ex.getMessage()));
     }
+
+    @ExceptionHandler(VlmException.class)
+    public ResponseEntity<ApiResponse<String>> handleVlmException(VlmException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(ApiResponse.of("VLM processing failed: " + ex.getMessage()));
+    }
 }

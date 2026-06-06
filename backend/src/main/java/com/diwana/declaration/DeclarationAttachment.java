@@ -38,6 +38,9 @@ public class DeclarationAttachment {
     @Column(name = "imported", nullable = false)
     private boolean imported = false;
 
+    @Column(name = "vlm_text", columnDefinition = "TEXT")
+    private String vlmText;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -62,5 +65,7 @@ public class DeclarationAttachment {
     public void setUploadedBy(Long uploadedBy) { this.uploadedBy = uploadedBy; }
     public boolean isImported() { return imported; }
     public void setImported(boolean imported) { this.imported = imported; }
+    public String getVlmText() { return vlmText; }
+    public void setVlmText(String vlmText) { this.vlmText = vlmText; }
     public Instant getCreatedAt() { return createdAt; }
 }

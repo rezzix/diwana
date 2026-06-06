@@ -7,7 +7,16 @@ export interface AttachmentDto {
   contentType: string;
   fileSize: number;
   imported: boolean;
+  vlmText: string | null;
   createdAt: string;
+}
+
+export interface SmartImportResult {
+  id: number;
+  docType: string;
+  fileName: string;
+  imported: boolean;
+  vlmText: string;
 }
 
 export function getAttachments(declarationId: number, signal?: AbortSignal): Promise<AttachmentDto[]> {
@@ -18,8 +27,12 @@ export function markAttachmentImported(declarationId: number, attachmentId: numb
   return apiPut<AttachmentDto>(`/declarations/${declarationId}/attachments/${attachmentId}/import`);
 }
 
-export function deleteAttachment(declarationId: number, attachmentId: number): Promise<void> {
-  return apiDelete(`/declarations/${declarationId}/attachments/${attachmentId}`);
+export function smartImportAttachment(declarationId: number, attachmentId: number, signal?: AbortSignal): Promise<SmartImportResult> {
+  return apiPut<SmartImportResult>(`/declarations/${declarationId}/attachments/${attachmentId}/smart-import`, undefined, signal);
+}
+
+export async function deleteAttachment(declarationId: number, attachmentId: number): Promise<void> {
+  await apiDelete(`/declarations/${declarationId}/attachments/${attachmentId}`);
 }
 
 export function getAttachmentViewUrl(declarationId: number, attachmentId: number): string {
