@@ -45,6 +45,9 @@ public class VlmService {
     private static final int RENDER_DPI = 72;
     private static final int MAX_PAGES = 3;
 
+    /** Inner record pairing base64 image data with its MIME type. */
+    private record ImageData(String mimeType, String base64) {}
+
     private static final String SYSTEM_PROMPT = """
             You are an invoice data extraction assistant. Extract structured data from the invoice document image(s).
             Return ONLY a JSON object (no markdown fences, no commentary) with this exact schema:
@@ -109,7 +112,7 @@ public class VlmService {
         log.info("[VLM] Loaded attachment: id={}, fileName={}, contentType={}", attachment.getId(), attachment.getFileName(), attachment.getContentType());
 
         // Load file bytes
-        List<String> base64Images;
+        List<ImageData> images;
         try {
             Resource resource = storageService.load(attachment.getFilePath());
             byte[] fileBytes;
@@ -117,26 +120,26 @@ public class VlmService {
                 fileBytes = is.readAllBytes();
             }
             log.info("[VLM] Read {} bytes from storage, converting to images...", fileBytes.length);
-            base64Images = convertToBase64Images(fileBytes, attachment.getContentType());
-            log.info("[VLM] Converted to {} base64 image(s)", base64Images.size());
+            images = convertToImages(fileBytes, attachment.getContentType());
+            log.info("[VLM] Converted to {} image(s)", images.size());
         } catch (IOException e) {
             throw new VlmException("Failed to read attachment file: " + e.getMessage(), e);
         }
 
-        if (base64Images.isEmpty()) {
+        if (images.isEmpty()) {
             throw new VlmException("Could not extract any images from the document");
         }
 
         log.info("[VLM] Calling VLM API at {} with model {}...", openAiProperties.baseUrl(), openAiProperties.model());
         long start = System.currentTimeMillis();
-        String result = callVlmApi(base64Images);
+        String result = callVlmApi(images);
         long elapsed = System.currentTimeMillis() - start;
         log.info("[VLM] VLM API call completed in {}ms, response length={}", elapsed, result.length());
         return result;
     }
 
-    private List<String> convertToBase64Images(byte[] fileBytes, String contentType) throws IOException {
-        List<String> images = new ArrayList<>();
+    private List<ImageData> convertToImages(byte[] fileBytes, String contentType) throws IOException {
+        List<ImageData> images = new ArrayList<>();
 
         if (contentType != null && contentType.equals("application/pdf")) {
             // Render PDF pages to PNG
@@ -148,18 +151,27 @@ public class VlmService {
                     BufferedImage image = renderer.renderImageWithDPI(page, RENDER_DPI, ImageType.RGB);
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     ImageIO.write(image, "png", baos);
-                    images.add(Base64.getEncoder().encodeToString(baos.toByteArray()));
+                    images.add(new ImageData("image/png", Base64.getEncoder().encodeToString(baos.toByteArray())));
                 }
+                log.info("[VLM] Rendered {} PDF page(s) to images", images.size());
             }
         } else if (contentType != null && contentType.startsWith("image/")) {
-            // For images, read and re-encode as PNG (handles TIFF conversion)
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(fileBytes));
-            if (image == null) {
-                throw new VlmException("Unsupported image format: " + contentType);
+            // For PNG/JPEG/GIF: send original bytes directly (no conversion needed)
+            // For TIFF/WebP: convert to PNG via ImageIO
+            if (contentType.equals("image/png") || contentType.equals("image/jpeg") || contentType.equals("image/gif")) {
+                log.info("[VLM] Sending image as-is ({}), {} bytes", contentType, fileBytes.length);
+                images.add(new ImageData(contentType, Base64.getEncoder().encodeToString(fileBytes)));
+            } else {
+                // TIFF, WebP, or other formats: convert to PNG
+                log.info("[VLM] Converting {} image to PNG, {} bytes", contentType, fileBytes.length);
+                BufferedImage image = ImageIO.read(new ByteArrayInputStream(fileBytes));
+                if (image == null) {
+                    throw new VlmException("Unsupported image format: " + contentType);
+                }
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(image, "png", baos);
+                images.add(new ImageData("image/png", Base64.getEncoder().encodeToString(baos.toByteArray())));
             }
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(image, "png", baos);
-            images.add(Base64.getEncoder().encodeToString(baos.toByteArray()));
         } else {
             throw new VlmException("Unsupported content type for VLM extraction: " + contentType);
         }
@@ -167,16 +179,16 @@ public class VlmService {
         return images;
     }
 
-    private String callVlmApi(List<String> base64Images) {
+    private String callVlmApi(List<ImageData> images) {
         try {
-            log.info("[VLM] Building request payload with {} image(s)...", base64Images.size());
+            log.info("[VLM] Building request payload with {} image(s)...", images.size());
             // Build content array: text prompt + images
             List<Map<String, Object>> content = new ArrayList<>();
             content.add(Map.of("type", "text", "text", USER_PROMPT));
-            for (String base64 : base64Images) {
+            for (ImageData img : images) {
                 content.add(Map.of(
                         "type", "image_url",
-                        "image_url", Map.of("url", "data:image/png;base64," + base64)
+                        "image_url", Map.of("url", "data:" + img.mimeType() + ";base64," + img.base64())
                 ));
             }
 
