@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface DeclarationAuditLogRepository extends JpaRepository<DeclarationAuditLog, Long> {
     List<DeclarationAuditLog> findByDeclarationIdOrderByCreatedAtAsc(Long declarationId);
+    void deleteByDeclarationId(Long declarationId);
 }
