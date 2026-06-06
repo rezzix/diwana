@@ -5,11 +5,12 @@ import com.diwana.config.OpenAiProperties;
 import com.diwana.storage.StorageService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.rendering.ImageType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -30,9 +31,10 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 @Service
 public class VlmService {
+
+    private static final Logger log = LoggerFactory.getLogger(VlmService.class);
 
     private final OpenAiProperties openAiProperties;
     private final StorageService storageService;
