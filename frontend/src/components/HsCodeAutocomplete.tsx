@@ -1,5 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { getHsCodes, type HsCodeDto } from '@/api/hsCodes';
 import type { TariffRateDto } from '@/api/declarations';
+
+interface HsCodeOption {
+  code: string;
+  description: string;
+  dutyRate?: number;
+  vatRate?: number;
+  source: 'tariff' | 'hscode';
+}
 
 interface HsCodeAutocompleteProps {
   tariffRates: TariffRateDto[];
@@ -12,27 +21,51 @@ interface HsCodeAutocompleteProps {
 export default function HsCodeAutocomplete({ tariffRates, value, onChange, onSelect, placeholder }: HsCodeAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [hsCodes, setHsCodes] = useState<HsCodeDto[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Deduplicate by hsCode, preferring null-origin entries (global defaults)
-  const uniqueRates = (() => {
-    const map = new Map<string, TariffRateDto>();
+  useEffect(() => {
+    const controller = new AbortController();
+    getHsCodes(controller.signal).then(setHsCodes).catch(() => {});
+    return () => controller.abort();
+  }, []);
+
+  // Merge tariff rates and HS code reference, dedup by code (tariff rates take priority)
+  const unifiedOptions = useMemo(() => {
+    const map = new Map<string, HsCodeOption>();
+    // First: add tariff rate entries (these have duty/VAT info)
     for (const tr of tariffRates) {
       if (!tr.hsCode) continue;
       if (!map.has(tr.hsCode) || tr.originCode === null) {
-        map.set(tr.hsCode, tr);
+        map.set(tr.hsCode, {
+          code: tr.hsCode,
+          description: tr.description,
+          dutyRate: tr.dutyRate,
+          vatRate: tr.vatRate,
+          source: 'tariff',
+        });
       }
     }
-    return Array.from(map.values()).sort((a, b) => (a.hsCode ?? '').localeCompare(b.hsCode ?? ''));
-  })();
+    // Then: add HsCode reference entries for codes not already covered
+    for (const hc of hsCodes) {
+      if (!map.has(hc.code)) {
+        map.set(hc.code, {
+          code: hc.code,
+          description: hc.description,
+          source: 'hscode',
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, [tariffRates, hsCodes]);
 
   const query = value.trim().toLowerCase();
   const matches = query.length >= 1
-    ? uniqueRates.filter((tr) => {
-        const code = (tr.hsCode ?? '').toLowerCase();
-        const desc = (tr.description ?? '').toLowerCase();
+    ? unifiedOptions.filter((opt) => {
+        const code = opt.code.toLowerCase();
+        const desc = opt.description.toLowerCase();
         return code.startsWith(query) || desc.includes(query);
-      }).slice(0, 10)
+      }).slice(0, 15)
     : [];
 
   // Reset highlight when matches change
@@ -51,9 +84,9 @@ export default function HsCodeAutocomplete({ tariffRates, value, onChange, onSel
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleSelect = (tr: TariffRateDto) => {
-    onChange(tr.hsCode ?? '');
-    onSelect(tr.hsCode ?? '', tr.description ?? '');
+  const handleSelect = (opt: HsCodeOption) => {
+    onChange(opt.code);
+    onSelect(opt.code, opt.description);
     setOpen(false);
   };
 
@@ -102,15 +135,20 @@ export default function HsCodeAutocomplete({ tariffRates, value, onChange, onSel
       />
       {showDropdown && (
         <ul className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-          {matches.map((tr, i) => (
-            <li key={tr.hsCode}
+          {matches.map((opt, i) => (
+            <li key={opt.code}
               className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer ${i === highlightIndex ? 'bg-primary-50' : 'hover:bg-gray-50'}`}
               onMouseEnter={() => setHighlightIndex(i)}
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(tr); }}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(opt); }}
             >
-              <span className="font-mono text-xs text-gray-900 shrink-0">{tr.hsCode}</span>
-              <span className="text-gray-600 truncate">{tr.description}</span>
-              <span className="text-xs text-gray-400 shrink-0 ml-auto">{tr.dutyRate}%D {tr.vatRate}%V</span>
+              <span className="font-mono text-xs text-gray-900 shrink-0">{opt.code}</span>
+              <span className="text-gray-600 truncate">{opt.description}</span>
+              {opt.source === 'tariff' && opt.dutyRate != null && opt.vatRate != null && (
+                <span className="text-xs text-gray-400 shrink-0 ml-auto">{opt.dutyRate}%D {opt.vatRate}%V</span>
+              )}
+              {opt.source === 'hscode' && (
+                <span className="text-xs text-blue-400 shrink-0 ml-auto">Ref</span>
+              )}
             </li>
           ))}
         </ul>
