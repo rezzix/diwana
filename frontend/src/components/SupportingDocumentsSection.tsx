@@ -468,10 +468,11 @@ export default function SupportingDocumentsSection({
     const hasProcessing = attachments.some((a) => a.vlmStatus === 'PROCESSING');
     if (!hasProcessing || !declarationId) return;
     const interval = setInterval(() => {
+      // Directly refresh attachments via onAttachmentsChanged callback
       onAttachmentsChanged?.();
     }, 5000);
     return () => clearInterval(interval);
-  }, [attachments, declarationId, onAttachmentsChanged]);
+  }, [attachments, declarationId]);
 
   const mandatoryDocTypes = docTypes
     .filter((dt) => dt.mandatoryFor)
