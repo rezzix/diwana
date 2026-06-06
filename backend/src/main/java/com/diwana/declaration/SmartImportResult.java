@@ -5,5 +5,8 @@ public record SmartImportResult(
         String docType,
         String fileName,
         boolean imported,
-        String vlmText
+        String vlmText,
+        String vlmModel,
+        String vlmUrl,
+        Long vlmProcessingTimeMs
 ) {}

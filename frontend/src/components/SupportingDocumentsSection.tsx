@@ -105,6 +105,9 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
   onImported: () => void;
 }) {
   const [vlmText, setVlmText] = useState<string | null>(attachment.vlmText);
+  const [vlmModel, setVlmModel] = useState<string | null>(null);
+  const [vlmUrl, setVlmUrl] = useState<string | null>(null);
+  const [vlmProcessingTimeMs, setVlmProcessingTimeMs] = useState<number | null>(null);
   const [loading, setLoading] = useState(!attachment.vlmText);
   const [error, setError] = useState('');
 
@@ -114,6 +117,9 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
     smartImportAttachment(declarationId, attachment.id, controller.signal)
       .then((result: SmartImportResult) => {
         setVlmText(result.vlmText);
+        setVlmModel(result.vlmModel);
+        setVlmUrl(result.vlmUrl);
+        setVlmProcessingTimeMs(result.vlmProcessingTimeMs);
         setLoading(false);
         onImported();
       })
@@ -174,6 +180,12 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
 
           {!loading && parsedData && (
             <div className="space-y-4">
+              {(vlmModel || vlmProcessingTimeMs != null) && (
+                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                  {vlmModel && <span className="bg-gray-100 px-2 py-1 rounded">Model: {vlmModel}</span>}
+                  {vlmProcessingTimeMs != null && <span className="bg-gray-100 px-2 py-1 rounded">Processing time: {(vlmProcessingTimeMs / 1000).toFixed(1)}s</span>}
+                </div>
+              )}
               <h3 className="font-semibold text-gray-900">Invoice Details</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 bg-gray-50 rounded-lg p-3">
                 {parsedData.invoice.date && (
@@ -239,6 +251,12 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
 
           {!loading && !error && vlmText && !parsedData && (
             <div className="space-y-2">
+              {(vlmModel || vlmProcessingTimeMs != null) && (
+                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                  {vlmModel && <span className="bg-gray-100 px-2 py-1 rounded">Model: {vlmModel}</span>}
+                  {vlmProcessingTimeMs != null && <span className="bg-gray-100 px-2 py-1 rounded">Processing time: {(vlmProcessingTimeMs / 1000).toFixed(1)}s</span>}
+                </div>
+              )}
               <h3 className="font-semibold text-gray-900">Raw VLM Output</h3>
               <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs overflow-auto max-h-[60vh] whitespace-pre-wrap">{vlmText}</pre>
             </div>

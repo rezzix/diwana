@@ -48,6 +48,9 @@ public class VlmService {
     /** Inner record pairing base64 image data with its MIME type. */
     private record ImageData(String mimeType, String base64) {}
 
+    /** Result of a VLM extraction call. */
+    public record VlmResult(String text, String model, String url, long processingTimeMs) {}
+
     private static final String SYSTEM_PROMPT = """
             You are an invoice data extraction assistant. Extract structured data from the invoice document image(s).
             Return ONLY a JSON object (no markdown fences, no commentary) with this exact schema:
@@ -100,7 +103,7 @@ public class VlmService {
         this.restTemplate = template;
     }
 
-    public String extractInvoiceData(Long attachmentId) {
+    public VlmResult extractInvoiceData(Long attachmentId) {
         log.info("[VLM] Starting invoice extraction for attachmentId={}", attachmentId);
 
         if (openAiProperties.apiKey() == null || openAiProperties.apiKey().isBlank()) {
@@ -130,12 +133,15 @@ public class VlmService {
             throw new VlmException("Could not extract any images from the document");
         }
 
-        log.info("[VLM] Calling VLM API at {} with model {}...", openAiProperties.baseUrl(), openAiProperties.model());
+        String url = openAiProperties.baseUrl() + "/chat/completions";
+        String model = openAiProperties.model();
+        log.info("[VLM] Calling VLM API at {} with model {}...", url, model);
         long start = System.currentTimeMillis();
-        String result = callVlmApi(images);
+        String result = callVlmApi(images, url, model);
         long elapsed = System.currentTimeMillis() - start;
         log.info("[VLM] VLM API call completed in {}ms, response length={}", elapsed, result.length());
-        return result;
+
+        return new VlmResult(result, model, url, elapsed);
     }
 
     private List<ImageData> convertToImages(byte[] fileBytes, String contentType) throws IOException {
@@ -179,9 +185,9 @@ public class VlmService {
         return images;
     }
 
-    private String callVlmApi(List<ImageData> images) {
+    private String callVlmApi(List<ImageData> images, String url, String model) {
         try {
-            log.info("[VLM] Building request payload with {} image(s)...", images.size());
+            log.info("[VLM] Building request payload with {} image(s), model={}...", images.size(), model);
             // Build content array: text prompt + images
             List<Map<String, Object>> content = new ArrayList<>();
             content.add(Map.of("type", "text", "text", USER_PROMPT));
@@ -193,7 +199,7 @@ public class VlmService {
             }
 
             Map<String, Object> request = Map.of(
-                    "model", openAiProperties.model(),
+                    "model", model,
                     "messages", List.of(
                             Map.of("role", "system", "content", SYSTEM_PROMPT),
                             Map.of("role", "user", "content", content)
@@ -205,14 +211,20 @@ public class VlmService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(openAiProperties.apiKey());
 
-            HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(request), headers);
-            log.info("[VLM] Sending request to {}/chat/completions...", openAiProperties.baseUrl());
+            String requestBody = objectMapper.writeValueAsString(request);
+            log.info("[VLM] Request body size: {} bytes", requestBody.length());
+            HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+            log.info("[VLM] Sending POST request to {}...", url);
             ResponseEntity<String> response = restTemplate.exchange(
-                    openAiProperties.baseUrl() + "/chat/completions", HttpMethod.POST, entity, String.class);
-            log.info("[VLM] Received response: status={}", response.getStatusCode());
+                    url, HttpMethod.POST, entity, String.class);
+            log.info("[VLM] Received response: status={}, body length={}", response.getStatusCode(), response.getBody() != null ? response.getBody().length() : 0);
 
             // Parse response
             JsonNode responseJson = objectMapper.readTree(response.getBody());
+            log.info("[VLM] Response model: {}, usage: {}",
+                responseJson.path("model").asText("?"),
+                responseJson.has("usage") ? responseJson.get("usage") : "?");
+
             JsonNode messageNode = responseJson.path("choices").get(0).path("message");
             String content1 = messageNode.path("content").asText();
 
@@ -220,6 +232,7 @@ public class VlmService {
             if (content1 == null || content1.isBlank()) {
                 String reasoning = messageNode.path("reasoning").asText(null);
                 if (reasoning != null && !reasoning.isBlank()) {
+                    log.info("[VLM] Content was empty, using reasoning field (length={})", reasoning.length());
                     content1 = reasoning;
                 }
             }
@@ -241,6 +254,7 @@ public class VlmService {
 
             return content1;
         } catch (Exception e) {
+            log.error("[VLM] API call failed: {}", e.getMessage(), e);
             throw new VlmException("VLM API call failed: " + e.getMessage(), e);
         }
     }

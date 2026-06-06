@@ -162,18 +162,23 @@ public class DeclarationAttachmentService {
         // If VLM text already exists, return cached result
         if (attachment.getVlmText() != null && !attachment.getVlmText().isBlank()) {
             return new SmartImportResult(attachment.getId(), attachment.getDocType(),
-                    attachment.getFileName(), attachment.isImported(), attachment.getVlmText());
+                    attachment.getFileName(), attachment.isImported(), attachment.getVlmText(),
+                    attachment.getVlmModel(), attachment.getVlmUrl(), attachment.getVlmProcessingTimeMs());
         }
 
         // Call VLM to extract invoice data
-        String vlmText = vlmService.extractInvoiceData(attachmentId);
+        VlmService.VlmResult vlmResult = vlmService.extractInvoiceData(attachmentId);
 
-        // Save result
-        attachment.setVlmText(vlmText);
+        // Save result with metadata
+        attachment.setVlmText(vlmResult.text());
+        attachment.setVlmModel(vlmResult.model());
+        attachment.setVlmUrl(vlmResult.url());
+        attachment.setVlmProcessingTimeMs(vlmResult.processingTimeMs());
         attachment.setImported(true);
         attachmentRepository.save(attachment);
 
         return new SmartImportResult(attachment.getId(), attachment.getDocType(),
-                attachment.getFileName(), attachment.isImported(), vlmText);
+                attachment.getFileName(), attachment.isImported(), vlmResult.text(),
+                vlmResult.model(), vlmResult.url(), vlmResult.processingTimeMs());
     }
 }

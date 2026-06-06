@@ -41,6 +41,15 @@ public class DeclarationAttachment {
     @Column(name = "vlm_text", columnDefinition = "TEXT")
     private String vlmText;
 
+    @Column(name = "vlm_model")
+    private String vlmModel;
+
+    @Column(name = "vlm_url")
+    private String vlmUrl;
+
+    @Column(name = "vlm_processing_time_ms")
+    private Long vlmProcessingTimeMs;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -67,5 +76,11 @@ public class DeclarationAttachment {
     public void setImported(boolean imported) { this.imported = imported; }
     public String getVlmText() { return vlmText; }
     public void setVlmText(String vlmText) { this.vlmText = vlmText; }
+    public String getVlmModel() { return vlmModel; }
+    public void setVlmModel(String vlmModel) { this.vlmModel = vlmModel; }
+    public String getVlmUrl() { return vlmUrl; }
+    public void setVlmUrl(String vlmUrl) { this.vlmUrl = vlmUrl; }
+    public Long getVlmProcessingTimeMs() { return vlmProcessingTimeMs; }
+    public void setVlmProcessingTimeMs(Long vlmProcessingTimeMs) { this.vlmProcessingTimeMs = vlmProcessingTimeMs; }
     public Instant getCreatedAt() { return createdAt; }
 }

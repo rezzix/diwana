@@ -17,6 +17,9 @@ export interface SmartImportResult {
   fileName: string;
   imported: boolean;
   vlmText: string;
+  vlmModel: string | null;
+  vlmUrl: string | null;
+  vlmProcessingTimeMs: number | null;
 }
 
 export function getAttachments(declarationId: number, signal?: AbortSignal): Promise<AttachmentDto[]> {
