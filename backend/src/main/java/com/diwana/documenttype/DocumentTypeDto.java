@@ -8,6 +8,7 @@ public record DocumentTypeDto(
         String name,
         String description,
         String mandatoryFor,
+        Integer importOrder,
         boolean active,
         String createdAt,
         String updatedAt
@@ -16,7 +17,8 @@ public record DocumentTypeDto(
             @NotBlank String code,
             @NotBlank String name,
             String description,
-            String mandatoryFor
+            String mandatoryFor,
+            Integer importOrder
     ) {}
 
     public record UpdateRequest(
@@ -24,6 +26,7 @@ public record DocumentTypeDto(
             @NotBlank String name,
             String description,
             String mandatoryFor,
+            Integer importOrder,
             Boolean active
     ) {}
 }

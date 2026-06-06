@@ -26,6 +26,9 @@ public class DocumentType {
     @Column(name = "mandatory_for", length = 500)
     private String mandatoryFor;
 
+    @Column(name = "import_order")
+    private Integer importOrder;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -54,6 +57,8 @@ public class DocumentType {
     public void setDescription(String description) { this.description = description; }
     public String getMandatoryFor() { return mandatoryFor; }
     public void setMandatoryFor(String mandatoryFor) { this.mandatoryFor = mandatoryFor; }
+    public Integer getImportOrder() { return importOrder; }
+    public void setImportOrder(Integer importOrder) { this.importOrder = importOrder; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public Instant getCreatedAt() { return createdAt; }

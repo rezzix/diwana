@@ -35,6 +35,9 @@ public class DeclarationAttachment {
     @Column(name = "uploaded_by", nullable = false)
     private Long uploadedBy;
 
+    @Column(name = "imported", nullable = false)
+    private boolean imported = false;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -57,5 +60,7 @@ public class DeclarationAttachment {
     public void setFileSize(long fileSize) { this.fileSize = fileSize; }
     public Long getUploadedBy() { return uploadedBy; }
     public void setUploadedBy(Long uploadedBy) { this.uploadedBy = uploadedBy; }
+    public boolean isImported() { return imported; }
+    public void setImported(boolean imported) { this.imported = imported; }
     public Instant getCreatedAt() { return createdAt; }
 }

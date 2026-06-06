@@ -41,6 +41,7 @@ public class DocumentTypeService {
         docType.setName(request.name());
         docType.setDescription(request.description());
         docType.setMandatoryFor(request.mandatoryFor());
+        docType.setImportOrder(request.importOrder());
         docType.setActive(true);
         return documentTypeRepository.save(docType);
     }
@@ -58,6 +59,7 @@ public class DocumentTypeService {
         docType.setName(request.name());
         docType.setDescription(request.description());
         docType.setMandatoryFor(request.mandatoryFor());
+        docType.setImportOrder(request.importOrder());
         if (request.active() != null) {
             docType.setActive(request.active());
         }

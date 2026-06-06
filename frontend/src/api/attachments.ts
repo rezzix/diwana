@@ -1,4 +1,4 @@
-import { apiGet, apiDelete } from './client';
+import { apiGet, apiPut, apiDelete } from './client';
 
 export interface AttachmentDto {
   id: number;
@@ -6,11 +6,16 @@ export interface AttachmentDto {
   fileName: string;
   contentType: string;
   fileSize: number;
+  imported: boolean;
   createdAt: string;
 }
 
 export function getAttachments(declarationId: number, signal?: AbortSignal): Promise<AttachmentDto[]> {
   return apiGet<AttachmentDto[]>(`/declarations/${declarationId}/attachments`, undefined, signal);
+}
+
+export function markAttachmentImported(declarationId: number, attachmentId: number): Promise<AttachmentDto> {
+  return apiPut<AttachmentDto>(`/declarations/${declarationId}/attachments/${attachmentId}/import`);
 }
 
 export function deleteAttachment(declarationId: number, attachmentId: number): Promise<void> {
