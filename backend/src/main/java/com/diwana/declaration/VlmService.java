@@ -5,6 +5,7 @@ import com.diwana.config.OpenAiProperties;
 import com.diwana.storage.StorageService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
@@ -29,6 +30,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class VlmService {
 
@@ -94,12 +96,15 @@ public class VlmService {
     }
 
     public String extractInvoiceData(Long attachmentId) {
+        log.info("[VLM] Starting invoice extraction for attachmentId={}", attachmentId);
+
         if (openAiProperties.apiKey() == null || openAiProperties.apiKey().isBlank()) {
-            throw new VlmException("VLM API key is not configured. Set DIWANA_OPENAI_API_KEY environment variable.");
+            throw new VlmException("VLM API key is not configured. Set OPENAI_API_KEY environment variable.");
         }
 
         DeclarationAttachment attachment = attachmentRepository.findById(attachmentId)
                 .orElseThrow(() -> new VlmException("Attachment not found: " + attachmentId));
+        log.info("[VLM] Loaded attachment: id={}, fileName={}, contentType={}", attachment.getId(), attachment.getFileName(), attachment.getContentType());
 
         // Load file bytes
         List<String> base64Images;
@@ -109,7 +114,9 @@ public class VlmService {
             try (InputStream is = resource.getInputStream()) {
                 fileBytes = is.readAllBytes();
             }
+            log.info("[VLM] Read {} bytes from storage, converting to images...", fileBytes.length);
             base64Images = convertToBase64Images(fileBytes, attachment.getContentType());
+            log.info("[VLM] Converted to {} base64 image(s)", base64Images.size());
         } catch (IOException e) {
             throw new VlmException("Failed to read attachment file: " + e.getMessage(), e);
         }
@@ -118,7 +125,12 @@ public class VlmService {
             throw new VlmException("Could not extract any images from the document");
         }
 
-        return callVlmApi(base64Images);
+        log.info("[VLM] Calling VLM API at {} with model {}...", openAiProperties.baseUrl(), openAiProperties.model());
+        long start = System.currentTimeMillis();
+        String result = callVlmApi(base64Images);
+        long elapsed = System.currentTimeMillis() - start;
+        log.info("[VLM] VLM API call completed in {}ms, response length={}", elapsed, result.length());
+        return result;
     }
 
     private List<String> convertToBase64Images(byte[] fileBytes, String contentType) throws IOException {
@@ -129,6 +141,7 @@ public class VlmService {
             try (PDDocument document = Loader.loadPDF(fileBytes)) {
                 PDFRenderer renderer = new PDFRenderer(document);
                 int pages = Math.min(document.getNumberOfPages(), MAX_PAGES);
+                log.info("[VLM] PDF has {} pages, rendering {} at {} DPI", document.getNumberOfPages(), pages, RENDER_DPI);
                 for (int page = 0; page < pages; page++) {
                     BufferedImage image = renderer.renderImageWithDPI(page, RENDER_DPI, ImageType.RGB);
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -154,6 +167,7 @@ public class VlmService {
 
     private String callVlmApi(List<String> base64Images) {
         try {
+            log.info("[VLM] Building request payload with {} image(s)...", base64Images.size());
             // Build content array: text prompt + images
             List<Map<String, Object>> content = new ArrayList<>();
             content.add(Map.of("type", "text", "text", USER_PROMPT));
@@ -179,8 +193,10 @@ public class VlmService {
             headers.setBearerAuth(openAiProperties.apiKey());
 
             HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(request), headers);
+            log.info("[VLM] Sending request to {}/chat/completions...", openAiProperties.baseUrl());
             ResponseEntity<String> response = restTemplate.exchange(
                     openAiProperties.baseUrl() + "/chat/completions", HttpMethod.POST, entity, String.class);
+            log.info("[VLM] Received response: status={}", response.getStatusCode());
 
             // Parse response
             JsonNode responseJson = objectMapper.readTree(response.getBody());
