@@ -16,6 +16,7 @@ public class DeclarationAttachmentService {
     private final DeclarationAttachmentRepository attachmentRepository;
     private final DeclarationService declarationService;
     private final StorageService storageService;
+    private final VlmService vlmService;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final List<String> ALLOWED_TYPES = List.of(
@@ -24,10 +25,12 @@ public class DeclarationAttachmentService {
 
     public DeclarationAttachmentService(DeclarationAttachmentRepository attachmentRepository,
                                          DeclarationService declarationService,
-                                         StorageService storageService) {
+                                         StorageService storageService,
+                                         VlmService vlmService) {
         this.attachmentRepository = attachmentRepository;
         this.declarationService = declarationService;
         this.storageService = storageService;
+        this.vlmService = vlmService;
     }
 
     @Transactional(readOnly = true)
@@ -145,5 +148,32 @@ public class DeclarationAttachmentService {
                 .orElseThrow(() -> new EntityNotFoundException("Attachment", attachmentId));
         attachment.setImported(true);
         return attachmentRepository.save(attachment);
+    }
+
+    @Transactional
+    public SmartImportResult smartImport(Long declarationId, Long attachmentId) {
+        DeclarationAttachment attachment = attachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Attachment", attachmentId));
+
+        if (!attachment.getDeclaration().getId().equals(declarationId)) {
+            throw new IllegalArgumentException("Attachment does not belong to this declaration");
+        }
+
+        // If VLM text already exists, return cached result
+        if (attachment.getVlmText() != null && !attachment.getVlmText().isBlank()) {
+            return new SmartImportResult(attachment.getId(), attachment.getDocType(),
+                    attachment.getFileName(), attachment.isImported(), attachment.getVlmText());
+        }
+
+        // Call VLM to extract invoice data
+        String vlmText = vlmService.extractInvoiceData(attachmentId);
+
+        // Save result
+        attachment.setVlmText(vlmText);
+        attachment.setImported(true);
+        attachmentRepository.save(attachment);
+
+        return new SmartImportResult(attachment.getId(), attachment.getDocType(),
+                attachment.getFileName(), attachment.isImported(), vlmText);
     }
 }

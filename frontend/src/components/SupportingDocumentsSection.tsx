@@ -1,14 +1,10 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
-import { getAttachmentViewUrl, getAttachmentDownloadUrl, markAttachmentImported, type AttachmentDto } from '@/api/attachments';
+import { smartImportAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, markAttachmentImported, type AttachmentDto, type SmartImportResult } from '@/api/attachments';
 import { formatMandatoryFor, type DocumentTypeDto } from '@/api/documentTypes';
 
-function EditActionsDropdown({ onReplace, onDelete, canImport, importDisabled, importTitle, onImport }: {
+function EditActionsDropdown({ onReplace, onDelete }: {
   onReplace: () => void;
   onDelete: () => void;
-  canImport: boolean;
-  importDisabled: boolean;
-  importTitle: string;
-  onImport: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -37,14 +33,6 @@ function EditActionsDropdown({ onReplace, onDelete, canImport, importDisabled, i
             className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors">
             Delete
           </button>
-          {canImport && (
-            <button onClick={() => { setOpen(false); onImport(); }}
-              disabled={importDisabled}
-              title={importTitle}
-              className="w-full text-left px-3 py-1.5 text-xs text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              Import
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -81,6 +69,179 @@ function DocumentViewer({ attachment, declarationId, onClose }: {
             <img src={url} alt={attachment.fileName} className="max-w-full max-h-[75vh] mx-auto block" />
           ) : (
             <iframe src={url} title={attachment.fileName} className="w-full border-0" style={{ height: '75vh' }} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface InvoiceData {
+  invoice: {
+    date: string | null;
+    seller: string | null;
+    client: string | null;
+    countryOfOrigin: string | null;
+    grandTotal: string | null;
+    tax: string | null;
+    currency: string | null;
+  };
+  lineItems: Array<{
+    hsCode: string | null;
+    description: string | null;
+    quantity: string | null;
+    unit: string | null;
+    unitPrice: string | null;
+    totalValue: string | null;
+    currency: string | null;
+    countryOfOrigin: string | null;
+  }>;
+}
+
+function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
+  attachment: AttachmentDto;
+  declarationId: number;
+  onClose: () => void;
+  onImported: () => void;
+}) {
+  const [vlmText, setVlmText] = useState<string | null>(attachment.vlmText);
+  const [loading, setLoading] = useState(!attachment.vlmText);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (attachment.vlmText) return; // already have data
+    const controller = new AbortController();
+    smartImportAttachment(declarationId, attachment.id, controller.signal)
+      .then((result: SmartImportResult) => {
+        setVlmText(result.vlmText);
+        setLoading(false);
+        onImported();
+      })
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        // Extract error message from ApiResponse or AxiosError
+        let message = 'VLM analysis failed. Please try again.';
+        if (err && typeof err === 'object' && 'response' in err) {
+          const axiosErr = err as { response?: { data?: { data?: string } } };
+          if (axiosErr.response?.data?.data) {
+            message = axiosErr.response.data.data;
+          }
+        } else if (err instanceof Error) {
+          message = err.message;
+        }
+        setError(message);
+        setLoading(false);
+      });
+    return () => controller.abort();
+  }, [attachment.id, declarationId, attachment.vlmText]);
+
+  let parsedData: InvoiceData | null = null;
+  if (vlmText) {
+    try {
+      parsedData = JSON.parse(vlmText);
+    } catch {
+      parsedData = null;
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium text-gray-900">Smart Import</span>
+            <span className="text-sm text-gray-500 truncate">{attachment.fileName}</span>
+          </div>
+          <button onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+        </div>
+        <div className="flex-1 overflow-auto p-4">
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <svg className="animate-spin h-8 w-8 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              <p className="text-gray-600 text-sm">Analysing document with VLM...</p>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+              {error}
+            </div>
+          )}
+
+          {!loading && parsedData && (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-900">Invoice Details</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 bg-gray-50 rounded-lg p-3">
+                {parsedData.invoice.date && (
+                  <div><span className="text-xs text-gray-500">Date</span><br /><span className="text-sm font-medium">{parsedData.invoice.date}</span></div>
+                )}
+                {parsedData.invoice.seller && (
+                  <div><span className="text-xs text-gray-500">Seller</span><br /><span className="text-sm font-medium">{parsedData.invoice.seller}</span></div>
+                )}
+                {parsedData.invoice.client && (
+                  <div><span className="text-xs text-gray-500">Client</span><br /><span className="text-sm font-medium">{parsedData.invoice.client}</span></div>
+                )}
+                {parsedData.invoice.countryOfOrigin && (
+                  <div><span className="text-xs text-gray-500">Country of Origin</span><br /><span className="text-sm font-medium">{parsedData.invoice.countryOfOrigin}</span></div>
+                )}
+                {parsedData.invoice.grandTotal && (
+                  <div><span className="text-xs text-gray-500">Grand Total</span><br /><span className="text-sm font-medium">{parsedData.invoice.grandTotal}</span></div>
+                )}
+                {parsedData.invoice.tax && (
+                  <div><span className="text-xs text-gray-500">Tax</span><br /><span className="text-sm font-medium">{parsedData.invoice.tax}</span></div>
+                )}
+                {parsedData.invoice.currency && (
+                  <div><span className="text-xs text-gray-500">Currency</span><br /><span className="text-sm font-medium">{parsedData.invoice.currency}</span></div>
+                )}
+              </div>
+
+              {parsedData.lineItems && parsedData.lineItems.length > 0 && (
+                <>
+                  <h3 className="font-semibold text-gray-900">Line Items ({parsedData.lineItems.length})</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm border border-gray-200 rounded-lg">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">HS Code</th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">Description</th>
+                          <th className="text-right px-3 py-2 font-medium text-gray-700">Qty</th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">Unit</th>
+                          <th className="text-right px-3 py-2 font-medium text-gray-700">Unit Price</th>
+                          <th className="text-right px-3 py-2 font-medium text-gray-700">Total</th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">Currency</th>
+                          <th className="text-left px-3 py-2 font-medium text-gray-700">Origin</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {parsedData.lineItems.map((item, i) => (
+                          <tr key={i} className="border-b border-gray-100">
+                            <td className="px-3 py-1.5 font-mono text-xs">{item.hsCode || '—'}</td>
+                            <td className="px-3 py-1.5">{item.description || '—'}</td>
+                            <td className="px-3 py-1.5 text-right">{item.quantity || '—'}</td>
+                            <td className="px-3 py-1.5 text-xs">{item.unit || '—'}</td>
+                            <td className="px-3 py-1.5 text-right">{item.unitPrice || '—'}</td>
+                            <td className="px-3 py-1.5 text-right font-medium">{item.totalValue || '—'}</td>
+                            <td className="px-3 py-1.5 text-xs">{item.currency || '—'}</td>
+                            <td className="px-3 py-1.5 text-xs">{item.countryOfOrigin || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {!loading && !error && vlmText && !parsedData && (
+            <div className="space-y-2">
+              <h3 className="font-semibold text-gray-900">Raw VLM Output</h3>
+              <pre className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs overflow-auto max-h-[60vh] whitespace-pre-wrap">{vlmText}</pre>
+            </div>
           )}
         </div>
       </div>
@@ -141,18 +302,17 @@ export default function SupportingDocumentsSection({
   setError,
 }: SupportingDocumentsSectionProps) {
   const [viewingAttachment, setViewingAttachment] = useState<AttachmentDto | null>(null);
+  const [importingAttachment, setImportingAttachment] = useState<AttachmentDto | null>(null);
 
   const mandatoryDocTypes = docTypes
     .filter((dt) => dt.mandatoryFor)
     .sort((a, b) => {
-      // Sort by importOrder ascending; null importOrder goes last
       if (a.importOrder != null && b.importOrder == null) return -1;
       if (a.importOrder == null && b.importOrder != null) return 1;
       if (a.importOrder != null && b.importOrder != null) return a.importOrder - b.importOrder;
       return a.name.localeCompare(b.name);
     });
 
-  // Map first attachment per docType
   const attachmentsByType: Record<string, AttachmentDto> = {};
   for (const att of attachments) {
     if (!attachmentsByType[att.docType]) {
@@ -160,19 +320,16 @@ export default function SupportingDocumentsSection({
     }
   }
 
-  // Track first attachment per mandatory type (already shown in mandatory rows)
   const shownInMandatoryRows = new Set<string>();
   for (const dt of mandatoryDocTypes) {
     const att = attachmentsByType[dt.code];
     if (att) shownInMandatoryRows.add(String(att.id));
   }
 
-  // Doc types with importOrder, sorted by importOrder ascending
   const importableDocTypes = docTypes
     .filter((dt) => dt.importOrder != null)
     .sort((a, b) => (a.importOrder ?? 0) - (b.importOrder ?? 0));
 
-  // For each importable doc type, check if it has at least one imported attachment
   const importedDocTypeCodes = new Set<string>();
   for (const att of attachments) {
     if (att.imported) {
@@ -180,17 +337,14 @@ export default function SupportingDocumentsSection({
     }
   }
 
-  // An attachment's doc type can be imported if all doc types with lower importOrder are already imported
   function canImport(docTypeCode: string): boolean {
     const dt = docTypes.find((d) => d.code === docTypeCode);
     if (!dt || dt.importOrder == null) return false;
-    // All doc types with a lower importOrder must be imported
     return importableDocTypes
       .filter((t) => (t.importOrder ?? 0) < (dt.importOrder ?? 0))
       .every((t) => importedDocTypeCodes.has(t.code));
   }
 
-  // Build unified row list: mandatory types first, then extra attachments
   const rows: DocRow[] = [];
 
   for (const dt of mandatoryDocTypes) {
@@ -272,13 +426,8 @@ export default function SupportingDocumentsSection({
     await onDelete(attId);
   };
 
-  const handleMarkImported = async (attId: number) => {
-    try {
-      await markAttachmentImported(declarationId, attId);
-      onAttachmentsChanged?.();
-    } catch {
-      setError?.('Failed to mark document as imported');
-    }
+  const handleSmartImport = (att: AttachmentDto) => {
+    setImportingAttachment(att);
   };
 
   const hasRows = rows.length > 0;
@@ -290,6 +439,15 @@ export default function SupportingDocumentsSection({
           attachment={viewingAttachment}
           declarationId={declarationId}
           onClose={() => setViewingAttachment(null)}
+        />
+      )}
+
+      {importingAttachment && (
+        <SmartImportModal
+          attachment={importingAttachment}
+          declarationId={declarationId}
+          onClose={() => setImportingAttachment(null)}
+          onImported={onAttachmentsChanged}
         />
       )}
 
@@ -344,22 +502,24 @@ export default function SupportingDocumentsSection({
                           className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors">
                           View
                         </button>
-                        <a href={getAttachmentDownloadUrl(declarationId, row.attachment.id)}
-                          className="text-xs px-2 py-1 bg-gray-50 text-primary-600 rounded hover:bg-gray-100 transition-colors">
-                          Download
-                        </a>
+                        {row.docType.importOrder != null && !row.attachment.imported && (
+                          <button onClick={() => handleSmartImport(row.attachment!)}
+                            disabled={!canImport(row.docType.code)}
+                            title={canImport(row.docType.code) ? 'Smart import with VLM' : 'Higher-priority documents must be imported first'}
+                            className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            Import
+                          </button>
+                        )}
+                        {row.attachment.imported && row.attachment.vlmText && (
+                          <button onClick={() => handleSmartImport(row.attachment!)}
+                            className="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100 transition-colors">
+                            View Data
+                          </button>
+                        )}
                         {canEdit && (
                           <EditActionsDropdown
                             onReplace={() => triggerReplace(row.attachment!.id)}
                             onDelete={() => handleDelete(row.attachment!.id)}
-                            canImport={row.docType.importOrder != null && !row.attachment.imported}
-                            importDisabled={row.docType.importOrder != null && !row.attachment.imported && !canImport(row.docType.code)}
-                            importTitle={
-                              canImport(row.docType.code)
-                                ? 'Mark as imported'
-                                : 'Higher-priority documents must be imported first'
-                            }
-                            onImport={() => handleMarkImported(row.attachment!.id)}
                           />
                         )}
                       </td>
