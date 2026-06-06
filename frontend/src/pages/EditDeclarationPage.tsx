@@ -128,6 +128,10 @@ export default function EditDeclarationPage() {
 
   const handleRemoveLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
 
+  const handleAddVlmLines = (newLines: LineItemRequest[]) => {
+    setLines([...lines, ...newLines]);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!id || lines.length === 0) return;
@@ -275,6 +279,8 @@ export default function EditDeclarationPage() {
             onDelete={handleDeleteAtt}
             onReplace={handleReplaceAtt}
             onAttachmentsChanged={() => { if (id) getAttachments(Number(id)).then(setAttachments).catch(() => {}); }}
+            onAddLines={handleAddVlmLines}
+            origins={origins}
             error={error}
             setError={setError}
           />

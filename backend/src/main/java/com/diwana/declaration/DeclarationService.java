@@ -362,6 +362,19 @@ public class DeclarationService {
         if (declaration.getLineItems().isEmpty()) {
             throw new BadRequestException("Cannot submit a declaration without line items");
         }
+        // Validate that all line items have required fields
+        for (int i = 0; i < declaration.getLineItems().size(); i++) {
+            DeclarationLineItem item = declaration.getLineItems().get(i);
+            java.util.List<String> missing = new java.util.ArrayList<>();
+            if (item.getHsCode() == null || item.getHsCode().isBlank()) missing.add("hsCode");
+            if (item.getDescription() == null || item.getDescription().isBlank()) missing.add("description");
+            if (item.getQuantity() == null || item.getQuantity().signum() <= 0) missing.add("quantity");
+            if (item.getUnitPrice() == null || item.getUnitPrice().signum() <= 0) missing.add("unitPrice");
+            if (item.getTotalValue() == null || item.getTotalValue().signum() <= 0) missing.add("totalValue");
+            if (!missing.isEmpty()) {
+                throw new BadRequestException("Line item " + (i + 1) + " is missing required fields: " + String.join(", ", missing));
+            }
+        }
         // Check all mandatory document types have at least one uploaded attachment
         List<com.diwana.documenttype.DocumentType> mandatoryDocTypes = documentTypeRepository.findAllByActiveTrueOrderByNameAsc()
                 .stream().filter(dt -> dt.getMandatoryFor() != null).toList();

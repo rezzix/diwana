@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { smartImportAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, markAttachmentImported, type AttachmentDto, type SmartImportResult } from '@/api/attachments';
 import { formatMandatoryFor, type DocumentTypeDto } from '@/api/documentTypes';
+import type { LineItemRequest } from '@/api/declarations';
+import type { OriginDto } from '@/api/origins';
+import { validateVlmLine, mapVlmLineToLineItemRequest, type VlmLineItem } from '@/utils/vlmMapping';
 
 function EditActionsDropdown({ onReplace, onDelete }: {
   onReplace: () => void;
@@ -98,11 +101,13 @@ interface InvoiceData {
   }>;
 }
 
-function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
+function SmartImportModal({ attachment, declarationId, onClose, onImported, onAddLines, origins }: {
   attachment: AttachmentDto;
   declarationId: number;
   onClose: () => void;
   onImported: () => void;
+  onAddLines?: (lines: LineItemRequest[]) => void;
+  origins?: OriginDto[];
 }) {
   const [vlmText, setVlmText] = useState<string | null>(attachment.vlmText);
   const [vlmModel, setVlmModel] = useState<string | null>(null);
@@ -110,6 +115,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
   const [vlmProcessingTimeMs, setVlmProcessingTimeMs] = useState<number | null>(null);
   const [loading, setLoading] = useState(!attachment.vlmText);
   const [error, setError] = useState('');
+  const [selectedLines, setSelectedLines] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (attachment.vlmText) return; // already have data
@@ -140,6 +146,45 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
       });
     return () => controller.abort();
   }, [attachment.id, declarationId, attachment.vlmText]);
+
+  // Compute line item validation
+  const lineValidations = parsedData?.lineItems?.map((item) => validateVlmLine(item as VlmLineItem)) ?? [];
+  const validLineIndices = lineValidations
+    .map((v, i) => v.valid ? i : -1)
+    .filter((i) => i >= 0);
+
+  // Auto-select all valid lines when data arrives
+  useEffect(() => {
+    if (validLineIndices.length > 0 && selectedLines.size === 0) {
+      setSelectedLines(new Set(validLineIndices));
+    }
+  }, [validLineIndices.length]);
+
+  const toggleLine = (index: number) => {
+    setSelectedLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const selectAllValid = () => setSelectedLines(new Set(validLineIndices));
+  const deselectAll = () => setSelectedLines(new Set());
+
+  const handleAddLines = () => {
+    if (!onAddLines || !parsedData?.lineItems || !origins) return;
+    const linesToAdd: LineItemRequest[] = [];
+    for (const index of Array.from(selectedLines).sort()) {
+      const item = parsedData.lineItems[index] as VlmLineItem;
+      const mapped = mapVlmLineToLineItemRequest(item, origins);
+      if (mapped) linesToAdd.push(mapped);
+    }
+    if (linesToAdd.length > 0) {
+      onAddLines(linesToAdd);
+      onClose();
+    }
+  };
 
   let parsedData: InvoiceData | null = null;
   if (vlmText) {
@@ -218,6 +263,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
                     <table className="w-full text-sm border border-gray-200 rounded-lg">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-200">
+                          {onAddLines && <th className="w-8 px-2 py-2"></th>}
                           <th className="text-left px-3 py-2 font-medium text-gray-700">HS Code</th>
                           <th className="text-left px-3 py-2 font-medium text-gray-700">Description</th>
                           <th className="text-right px-3 py-2 font-medium text-gray-700">Qty</th>
@@ -226,24 +272,71 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
                           <th className="text-right px-3 py-2 font-medium text-gray-700">Total</th>
                           <th className="text-left px-3 py-2 font-medium text-gray-700">Currency</th>
                           <th className="text-left px-3 py-2 font-medium text-gray-700">Origin</th>
+                          {onAddLines && <th className="px-2 py-2"></th>}
                         </tr>
                       </thead>
                       <tbody>
-                        {parsedData.lineItems.map((item, i) => (
-                          <tr key={i} className="border-b border-gray-100">
-                            <td className="px-3 py-1.5 font-mono text-xs">{item.hsCode || '—'}</td>
-                            <td className="px-3 py-1.5">{item.description || '—'}</td>
-                            <td className="px-3 py-1.5 text-right">{item.quantity || '—'}</td>
-                            <td className="px-3 py-1.5 text-xs">{item.unit || '—'}</td>
-                            <td className="px-3 py-1.5 text-right">{item.unitPrice || '—'}</td>
-                            <td className="px-3 py-1.5 text-right font-medium">{item.totalValue || '—'}</td>
-                            <td className="px-3 py-1.5 text-xs">{item.currency || '—'}</td>
-                            <td className="px-3 py-1.5 text-xs">{item.countryOfOrigin || '—'}</td>
-                          </tr>
-                        ))}
+                        {parsedData.lineItems.map((item, i) => {
+                          const validation = lineValidations[i];
+                          const isValid = validation?.valid ?? false;
+                          return (
+                            <tr key={i} className={`border-b border-gray-100 ${!isValid ? 'bg-red-50/50' : selectedLines.has(i) ? 'bg-primary-50/50' : ''}`}>
+                              {onAddLines && (
+                                <td className="px-2 py-1.5 text-center">
+                                  <input type="checkbox"
+                                    checked={selectedLines.has(i)}
+                                    onChange={() => toggleLine(i)}
+                                    disabled={!isValid}
+                                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:opacity-40"
+                                  />
+                                </td>
+                              )}
+                              <td className="px-3 py-1.5 font-mono text-xs">{item.hsCode || '—'}</td>
+                              <td className="px-3 py-1.5">{item.description || '—'}</td>
+                              <td className="px-3 py-1.5 text-right">{item.quantity || '—'}</td>
+                              <td className="px-3 py-1.5 text-xs">{item.unit || '—'}</td>
+                              <td className="px-3 py-1.5 text-right">{item.unitPrice || '—'}</td>
+                              <td className="px-3 py-1.5 text-right font-medium">{item.totalValue || '—'}</td>
+                              <td className="px-3 py-1.5 text-xs">{item.currency || '—'}</td>
+                              <td className="px-3 py-1.5 text-xs">{item.countryOfOrigin || '—'}</td>
+                              {onAddLines && (
+                                <td className="px-2 py-1.5">
+                                  {!isValid && validation && (
+                                    <span className="text-xs text-red-600" title={validation.errors.join(', ')}>
+                                      ⚠ Missing: {validation.errors.join(', ')}
+                                    </span>
+                                  )}
+                                </td>
+                              )}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
+
+                  {onAddLines && origins && (
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-3">
+                        <button onClick={selectAllValid}
+                          className="text-xs text-primary-600 hover:underline">
+                          Select all valid
+                        </button>
+                        <button onClick={deselectAll}
+                          className="text-xs text-gray-500 hover:underline">
+                          Deselect all
+                        </button>
+                        <span className="text-xs text-gray-500">
+                          {selectedLines.size} of {validLineIndices.length} valid line{validLineIndices.length !== 1 ? 's' : ''} selected
+                        </span>
+                      </div>
+                      <button onClick={handleAddLines}
+                        disabled={selectedLines.size === 0}
+                        className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        Add {selectedLines.size} line{selectedLines.size !== 1 ? 's' : ''} to declaration
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -296,6 +389,8 @@ interface SupportingDocumentsSectionProps {
   onDelete: (attachmentId: number) => Promise<void>;
   onReplace: (attachmentId: number, file: File) => Promise<void>;
   onAttachmentsChanged?: () => void;
+  onAddLines?: (lines: LineItemRequest[]) => void;
+  origins?: OriginDto[];
   error?: string;
   setError?: (error: string) => void;
 }
@@ -316,6 +411,8 @@ export default function SupportingDocumentsSection({
   onDelete,
   onReplace,
   onAttachmentsChanged,
+  onAddLines,
+  origins,
   error,
   setError,
 }: SupportingDocumentsSectionProps) {
@@ -466,6 +563,8 @@ export default function SupportingDocumentsSection({
           declarationId={declarationId}
           onClose={() => setImportingAttachment(null)}
           onImported={onAttachmentsChanged}
+          onAddLines={onAddLines}
+          origins={origins}
         />
       )}
 
