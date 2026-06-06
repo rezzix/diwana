@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
-import { smartImportAttachment, getAttachmentViewUrl, getAttachmentDownloadUrl, markAttachmentImported, type AttachmentDto, type SmartImportResult } from '@/api/attachments';
+import { smartImportAttachment, getAttachments, getAttachmentViewUrl, getAttachmentDownloadUrl, markAttachmentImported, type AttachmentDto, type SmartImportResult } from '@/api/attachments';
 import { formatMandatoryFor, type DocumentTypeDto } from '@/api/documentTypes';
 import type { LineItemRequest } from '@/api/declarations';
 import type { OriginDto } from '@/api/origins';
@@ -109,29 +109,71 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
   onAddLines?: (lines: LineItemRequest[]) => void;
   origins?: OriginDto[];
 }) {
-  const [vlmText, setVlmText] = useState<string | null>(attachment.vlmText);
+  const [vlmText, setVlmText] = useState<string | null>(attachment.vlmStatus === 'COMPLETED' ? attachment.vlmText : null);
   const [vlmModel, setVlmModel] = useState<string | null>(null);
   const [vlmUrl, setVlmUrl] = useState<string | null>(null);
   const [vlmProcessingTimeMs, setVlmProcessingTimeMs] = useState<number | null>(null);
-  const [loading, setLoading] = useState(!attachment.vlmText);
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(attachment.vlmStatus === 'PROCESSING' || attachment.vlmStatus === null);
+  const [vlmError, setVlmError] = useState(attachment.vlmStatus === 'FAILED' ? (attachment.vlmError || 'VLM import failed') : '');
   const [selectedLines, setSelectedLines] = useState<Set<number>>(new Set());
 
   useEffect(() => {
-    if (attachment.vlmText) return; // already have data
+    // Already completed — show data
+    if (attachment.vlmStatus === 'COMPLETED' && attachment.vlmText) {
+      return;
+    }
+
+    // Processing — poll until done
+    if (attachment.vlmStatus === 'PROCESSING') {
+      const interval = setInterval(async () => {
+        try {
+          const atts = await getAttachments(declarationId);
+          const updated = atts.find((a) => a.id === attachment.id);
+          if (updated?.vlmStatus === 'COMPLETED' && updated.vlmText) {
+            setVlmText(updated.vlmText);
+            setLoading(false);
+            onImported();
+            clearInterval(interval);
+          } else if (updated?.vlmStatus === 'FAILED') {
+            setVlmError(updated.vlmError || 'VLM import failed');
+            setLoading(false);
+            clearInterval(interval);
+          }
+        } catch { /* ignore polling errors */ }
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+
+    // Failed — show error (no polling, user clicks retry)
+    if (attachment.vlmStatus === 'FAILED') {
+      return;
+    }
+
+    // Not started — trigger VLM import (returns immediately with PROCESSING)
     const controller = new AbortController();
     smartImportAttachment(declarationId, attachment.id, controller.signal)
-      .then((result: SmartImportResult) => {
-        setVlmText(result.vlmText);
-        setVlmModel(result.vlmModel);
-        setVlmUrl(result.vlmUrl);
-        setVlmProcessingTimeMs(result.vlmProcessingTimeMs);
-        setLoading(false);
-        onImported();
+      .then(() => {
+        // Now poll until complete
+        const poll = setInterval(async () => {
+          try {
+            const atts = await getAttachments(declarationId);
+            const updated = atts.find((a) => a.id === attachment.id);
+            if (updated?.vlmStatus === 'COMPLETED' && updated.vlmText) {
+              setVlmText(updated.vlmText);
+              setLoading(false);
+              onImported();
+              clearInterval(poll);
+            } else if (updated?.vlmStatus === 'FAILED') {
+              setVlmError(updated.vlmError || 'VLM import failed');
+              setLoading(false);
+              clearInterval(poll);
+            }
+          } catch { /* ignore */ }
+        }, 5000);
+        return () => clearInterval(poll);
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
-        // Extract error message from ApiResponse or AxiosError
         let message = 'VLM analysis failed. Please try again.';
         if (err && typeof err === 'object' && 'response' in err) {
           const axiosErr = err as { response?: { data?: { data?: string } } };
@@ -141,11 +183,11 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
         } else if (err instanceof Error) {
           message = err.message;
         }
-        setError(message);
+        setVlmError(message);
         setLoading(false);
       });
     return () => controller.abort();
-  }, [attachment.id, declarationId, attachment.vlmText]);
+  }, [attachment.id, attachment.vlmStatus, attachment.vlmText, declarationId, onImported]);
 
   let parsedData: InvoiceData | null = null;
   if (vlmText) {
@@ -217,13 +259,15 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
             </div>
           )}
 
-          {error && (
+          {vlmError && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
-              {error}
+              {vlmError}
+              <button onClick={onClose}
+                className="ml-2 text-xs underline">Close</button>
             </div>
           )}
 
-          {!loading && parsedData && (
+          {!loading && !vlmError && parsedData && (
             <div className="space-y-4">
               {(vlmModel || vlmProcessingTimeMs != null) && (
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
@@ -342,7 +386,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
             </div>
           )}
 
-          {!loading && !error && vlmText && !parsedData && (
+          {!loading && !vlmError && vlmText && !parsedData && (
             <div className="space-y-2">
               {(vlmModel || vlmProcessingTimeMs != null) && (
                 <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
@@ -418,6 +462,16 @@ export default function SupportingDocumentsSection({
 }: SupportingDocumentsSectionProps) {
   const [viewingAttachment, setViewingAttachment] = useState<AttachmentDto | null>(null);
   const [importingAttachment, setImportingAttachment] = useState<AttachmentDto | null>(null);
+
+  // Poll for VLM status updates every 5 seconds when any attachment is PROCESSING
+  useEffect(() => {
+    const hasProcessing = attachments.some((a) => a.vlmStatus === 'PROCESSING');
+    if (!hasProcessing || !declarationId) return;
+    const interval = setInterval(() => {
+      onAttachmentsChanged?.();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [attachments, declarationId, onAttachmentsChanged]);
 
   const mandatoryDocTypes = docTypes
     .filter((dt) => dt.mandatoryFor)
@@ -607,7 +661,7 @@ export default function SupportingDocumentsSection({
                             className="text-primary-600 hover:underline font-medium">
                             {row.attachment.fileName}
                           </button>
-                          {row.attachment.imported && (
+                          {row.attachment.vlmStatus === 'COMPLETED' && (
                             <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-green-100 text-green-700">Imported</span>
                           )}
                         </div>
@@ -619,20 +673,54 @@ export default function SupportingDocumentsSection({
                           className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors">
                           View
                         </button>
-                        {row.docType.importOrder != null && !row.attachment.imported && (
-                          <button onClick={() => handleSmartImport(row.attachment!)}
-                            disabled={!canImport(row.docType.code)}
-                            title={canImport(row.docType.code) ? 'Smart import with VLM' : 'Higher-priority documents must be imported first'}
-                            className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                            Import
-                          </button>
-                        )}
-                        {row.attachment.imported && row.attachment.vlmText && (
-                          <button onClick={() => handleSmartImport(row.attachment!)}
-                            className="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100 transition-colors">
-                            View Data
-                          </button>
-                        )}
+                        {(() => {
+                          const status = row.attachment!.vlmStatus;
+                          const isImportable = row.docType.importOrder != null;
+                          if (!isImportable) return null;
+                          // PROCESSING state
+                          if (status === 'PROCESSING') {
+                            return (
+                              <button disabled
+                                className="text-xs px-2 py-1 bg-gray-200 text-gray-500 rounded cursor-not-allowed transition-colors">
+                                <span className="inline-flex items-center gap-1">
+                                  <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                  </svg>
+                                  Importing...
+                                </span>
+                              </button>
+                            );
+                          }
+                          // FAILED state — show retry
+                          if (status === 'FAILED') {
+                            return (
+                              <button onClick={() => handleSmartImport(row.attachment!)}
+                                title={row.attachment!.vlmError || 'VLM import failed. Click to retry.'}
+                                className="text-xs px-2 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors">
+                                Import ↻
+                              </button>
+                            );
+                          }
+                          // COMPLETED — show View Data
+                          if (status === 'COMPLETED' || row.attachment!.imported) {
+                            return (
+                              <button onClick={() => handleSmartImport(row.attachment!)}
+                                className="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100 transition-colors">
+                                View Data
+                              </button>
+                            );
+                          }
+                          // Not started — show Import button
+                          return (
+                            <button onClick={() => handleSmartImport(row.attachment!)}
+                              disabled={!canImport(row.docType.code)}
+                              title={canImport(row.docType.code) ? 'Smart import with VLM' : 'Higher-priority documents must be imported first'}
+                              className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                              Import
+                            </button>
+                          );
+                        })()}
                         {canEdit && (
                           <EditActionsDropdown
                             onReplace={() => triggerReplace(row.attachment!.id)}

@@ -50,6 +50,13 @@ public class DeclarationAttachment {
     @Column(name = "vlm_processing_time_ms")
     private Long vlmProcessingTimeMs;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vlm_status", length = 20)
+    private VlmStatus vlmStatus;
+
+    @Column(name = "vlm_error", columnDefinition = "TEXT")
+    private String vlmError;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -82,5 +89,13 @@ public class DeclarationAttachment {
     public void setVlmUrl(String vlmUrl) { this.vlmUrl = vlmUrl; }
     public Long getVlmProcessingTimeMs() { return vlmProcessingTimeMs; }
     public void setVlmProcessingTimeMs(Long vlmProcessingTimeMs) { this.vlmProcessingTimeMs = vlmProcessingTimeMs; }
+    public VlmStatus getVlmStatus() { return vlmStatus; }
+    public void setVlmStatus(VlmStatus vlmStatus) { this.vlmStatus = vlmStatus; }
+    public String getVlmError() { return vlmError; }
+    public void setVlmError(String vlmError) { this.vlmError = vlmError; }
     public Instant getCreatedAt() { return createdAt; }
+
+    public enum VlmStatus {
+        PROCESSING, COMPLETED, FAILED
+    }
 }
