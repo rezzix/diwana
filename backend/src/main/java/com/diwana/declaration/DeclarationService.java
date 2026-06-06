@@ -325,9 +325,8 @@ public class DeclarationService {
     @Transactional
     public void delete(Long id, Long userId) {
         Declaration declaration = getById(id);
-        if (declaration.getStatus() != Declaration.Status.DRAFT && declaration.getStatus() != Declaration.Status.REJECTED
-                && declaration.getStatus() != Declaration.Status.INFO_REQUESTED) {
-            throw new BadRequestException("Only draft, rejected, or info-requested declarations can be deleted");
+        if (declaration.getStatus() != Declaration.Status.DRAFT) {
+            throw new BadRequestException("Only draft declarations can be deleted");
         }
         User declarant = userService.getById(userId);
         if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
