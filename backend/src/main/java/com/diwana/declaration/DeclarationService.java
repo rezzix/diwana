@@ -30,6 +30,7 @@ public class DeclarationService {
     private final DeclarationAuditLogRepository auditLogRepository;
     private final DeclarationAttachmentRepository attachmentRepository;
     private final com.diwana.storage.StorageService storageService;
+    private final com.diwana.documenttype.DocumentTypeRepository documentTypeRepository;
 
     private final AtomicLong numberCounter = new AtomicLong(System.currentTimeMillis());
 
@@ -37,7 +38,8 @@ public class DeclarationService {
                                UserService userService, TariffRateRepository tariffRateRepository,
                                OriginRepository originRepository, DeclarationAuditLogRepository auditLogRepository,
                                DeclarationAttachmentRepository attachmentRepository,
-                               com.diwana.storage.StorageService storageService) {
+                               com.diwana.storage.StorageService storageService,
+                               com.diwana.documenttype.DocumentTypeRepository documentTypeRepository) {
         this.declarationRepository = declarationRepository;
         this.companyService = companyService;
         this.userService = userService;
@@ -46,6 +48,7 @@ public class DeclarationService {
         this.auditLogRepository = auditLogRepository;
         this.attachmentRepository = attachmentRepository;
         this.storageService = storageService;
+        this.documentTypeRepository = documentTypeRepository;
     }
 
     @Transactional
@@ -358,6 +361,16 @@ public class DeclarationService {
         }
         if (declaration.getLineItems().isEmpty()) {
             throw new BadRequestException("Cannot submit a declaration without line items");
+        }
+        // Check all mandatory document types have at least one uploaded attachment
+        List<com.diwana.documenttype.DocumentType> mandatoryDocTypes = documentTypeRepository.findAllByActiveTrueOrderByNameAsc()
+                .stream().filter(dt -> dt.getMandatoryFor() != null).toList();
+        List<DeclarationAttachment> declAttachments = attachmentRepository.findByDeclarationId(id);
+        for (com.diwana.documenttype.DocumentType dt : mandatoryDocTypes) {
+            boolean hasAttachment = declAttachments.stream().anyMatch(a -> a.getDocType().equals(dt.getCode()));
+            if (!hasAttachment) {
+                throw new BadRequestException("Mandatory document '" + dt.getName() + "' has not been uploaded");
+            }
         }
         String fromStatus = declaration.getStatus().name();
         declaration.setStatus(Declaration.Status.SUBMITTED);

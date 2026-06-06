@@ -33,6 +33,11 @@ export default function DeclarationDetailPage() {
   const isController = user?.role === 'CONTROLLER';
   const canEditDocs = isOwner && (decl?.status === 'DRAFT' || decl?.status === 'REJECTED' || decl?.status === 'INFO_REQUESTED');
 
+  const mandatoryDocTypes = docTypes.filter((dt) => dt.mandatoryFor);
+  const mandatoryDocsUploaded = mandatoryDocTypes.every((dt) => attachments.some((att) => att.docType === dt.code));
+  const hasLineItems = (decl?.lineItems?.length ?? 0) > 0;
+  const canSubmitDraft = hasLineItems && mandatoryDocsUploaded;
+
   const fetchData = async (signal?: AbortSignal) => {
     if (!id) return;
     try {
@@ -241,8 +246,9 @@ export default function DeclarationDetailPage() {
           <div className="flex gap-2">
             {isOwner && decl.status === 'DRAFT' && (
               <>
-                <button onClick={handleSubmitDecl} disabled={submitting}
-                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
+                <button onClick={handleSubmitDecl} disabled={submitting || !canSubmitDraft}
+                  title={!canSubmitDraft ? (!hasLineItems ? 'Add at least one goods line' : 'Upload all mandatory documents') : undefined}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                   {submitting ? 'Submitting...' : 'Submit for Review'}
                 </button>
                 <Link to={`/declarations/${id}/edit`}
@@ -257,8 +263,9 @@ export default function DeclarationDetailPage() {
             )}
             {isOwner && (decl.status === 'REJECTED' || decl.status === 'INFO_REQUESTED') && (
               <>
-                <button onClick={handleResubmit} disabled={resubmitting}
-                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 transition-colors">
+                <button onClick={handleResubmit} disabled={resubmitting || !canSubmitDraft}
+                  title={!canSubmitDraft ? (!hasLineItems ? 'Add at least one goods line' : 'Upload all mandatory documents') : undefined}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                   {resubmitting ? 'Resubmitting...' : 'Resubmit'}
                 </button>
                 <Link to={`/declarations/${id}/edit`}
