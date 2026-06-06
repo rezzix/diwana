@@ -56,6 +56,11 @@ export default function CreateDeclarationPage() {
     }
   }, [createdId]);
 
+  const mandatoryDocTypes = docTypes.filter((dt) => dt.mandatoryFor);
+  const mandatoryDocsUploaded = createdId
+    ? mandatoryDocTypes.every((dt) => attachments.some((att) => att.docType === dt.code))
+    : false;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!customsOffice) {
@@ -174,8 +179,10 @@ export default function CreateDeclarationPage() {
 
         {createdId && (
           <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-2">
-            Declaration created successfully! Upload supporting documents below, then{' '}
-            <Link to={`/declarations/${createdId}/edit`} className="underline font-medium">add goods lines</Link>.
+            Declaration created successfully! Upload supporting documents below
+            {mandatoryDocsUploaded && (
+              <>, then{' '}<Link to={`/declarations/${createdId}/edit`} className="underline font-medium">add goods lines</Link></>
+            )}.
           </div>
         )}
 
@@ -260,10 +267,16 @@ export default function CreateDeclarationPage() {
 
             <div className="flex justify-end gap-3">
               <Link to="/declarations" className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Back to Declarations</Link>
-              <Link to={`/declarations/${createdId}/edit`}
-                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
-                Add Goods Lines
-              </Link>
+              {mandatoryDocsUploaded ? (
+                <Link to={`/declarations/${createdId}/edit`}
+                  className="px-6 py-2.5 bg-primary-600 text-white rounded-lg text-sm font-medium hover:bg-primary-700 transition-colors">
+                  Add Goods Lines
+                </Link>
+              ) : (
+                <span className="px-6 py-2.5 bg-gray-200 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed inline-block">
+                  Add Goods Lines
+                </span>
+              )}
             </div>
           </div>
         )}
