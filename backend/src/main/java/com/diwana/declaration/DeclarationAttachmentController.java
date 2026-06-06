@@ -51,6 +51,14 @@ public class DeclarationAttachmentController {
             return ResponseEntity.badRequest().body(ApiResponse.of(null));
         }
         DeclarationAttachment attachment = attachmentService.upload(declarationId, file, docType, userId);
+
+        // Auto-trigger VLM import for importable document types (runs in its own transaction)
+        if (attachmentService.isImportableDocType(docType)) {
+            attachmentService.smartImport(declarationId, attachment.getId());
+            // Re-fetch so the response shows PROCESSING status
+            attachment = attachmentService.getById(attachment.getId());
+        }
+
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),

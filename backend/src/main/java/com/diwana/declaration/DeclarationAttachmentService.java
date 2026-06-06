@@ -87,18 +87,7 @@ public class DeclarationAttachmentService {
         attachment.setFileSize(file.getSize());
         attachment.setUploadedBy(userId);
 
-        attachment = attachmentRepository.save(attachment);
-        final DeclarationAttachment saved = attachment;
-
-        // Auto-trigger VLM import for importable document types
-        documentTypeRepository.findByCode(docType).ifPresent(dt -> {
-            if (dt.getImportOrder() != null) {
-                log.info("[VLM] Auto-triggering VLM import for attachmentId={}, docType={}", saved.getId(), docType);
-                self.smartImport(declarationId, saved.getId());
-            }
-        });
-
-        return attachment;
+        return attachmentRepository.save(attachment);
     }
 
     @Transactional
@@ -253,5 +242,11 @@ public class DeclarationAttachmentService {
                 attachment.getFileName(), attachment.isImported(), attachment.getVlmText(),
                 attachment.getVlmModel(), attachment.getVlmUrl(), attachment.getVlmProcessingTimeMs(),
                 attachment.getVlmStatus(), attachment.getVlmError());
+    }
+
+    public boolean isImportableDocType(String docType) {
+        return documentTypeRepository.findByCode(docType)
+                .map(dt -> dt.getImportOrder() != null)
+                .orElse(false);
     }
 }
