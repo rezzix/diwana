@@ -9,6 +9,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/companies")
 public class CompanyController {
@@ -21,6 +23,12 @@ public class CompanyController {
         this.companyService = companyService;
         this.companyMapper = companyMapper;
         this.authHelper = authHelper;
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<CompanyDto>>> list() {
+        return ResponseEntity.ok(ApiResponse.of(companyMapper.toDtoList(companyService.listAll())));
     }
 
     @GetMapping("/my")

@@ -1,6 +1,10 @@
 import { apiGet, apiPut } from './client';
 import type { CompanyDto } from '@/types';
 
+export async function listCompanies(): Promise<CompanyDto[]> {
+  return apiGet<CompanyDto[]>('/companies');
+}
+
 export async function getCompany(id: number): Promise<CompanyDto> {
   return apiGet<CompanyDto>(`/companies/${id}`);
 }
