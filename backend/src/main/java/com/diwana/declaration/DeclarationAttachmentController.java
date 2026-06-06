@@ -27,14 +27,14 @@ public class DeclarationAttachmentController {
         this.authHelper = authHelper;
     }
 
-    public record AttachmentDto(Long id, String docType, String fileName, String contentType, long fileSize, String createdAt) {}
+    public record AttachmentDto(Long id, String docType, String fileName, String contentType, long fileSize, boolean imported, String createdAt) {}
 
     @GetMapping
     @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<List<AttachmentDto>>> list(@PathVariable Long declarationId) {
         List<AttachmentDto> attachments = attachmentService.getByDeclarationId(declarationId).stream()
                 .map(a -> new AttachmentDto(a.getId(), a.getDocType(), a.getFileName(),
-                        a.getContentType(), a.getFileSize(), a.getCreatedAt().toString()))
+                        a.getContentType(), a.getFileSize(), a.isImported(), a.getCreatedAt().toString()))
                 .toList();
         return ResponseEntity.ok(ApiResponse.of(attachments));
     }
@@ -54,7 +54,7 @@ public class DeclarationAttachmentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
-                        attachment.getFileSize(), attachment.getCreatedAt().toString())
+                        attachment.getFileSize(), attachment.isImported(), attachment.getCreatedAt().toString())
         ));
     }
 
@@ -78,7 +78,18 @@ public class DeclarationAttachmentController {
         return ResponseEntity.ok(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
-                        attachment.getFileSize(), attachment.getCreatedAt().toString())
+                        attachment.getFileSize(), attachment.isImported(), attachment.getCreatedAt().toString())
+        ));
+    }
+
+    @PutMapping("/{attachmentId}/import")
+    @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
+    public ResponseEntity<ApiResponse<AttachmentDto>> markImported(@PathVariable Long attachmentId) {
+        DeclarationAttachment attachment = attachmentService.markImported(attachmentId);
+        return ResponseEntity.ok(ApiResponse.of(
+                new AttachmentDto(attachment.getId(), attachment.getDocType(),
+                        attachment.getFileName(), attachment.getContentType(),
+                        attachment.getFileSize(), attachment.isImported(), attachment.getCreatedAt().toString())
         ));
     }
 

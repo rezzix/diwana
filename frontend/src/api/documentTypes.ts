@@ -6,6 +6,7 @@ export interface DocumentTypeDto {
   name: string;
   description: string | null;
   mandatoryFor: string | null;
+  importOrder: number | null;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -32,11 +33,11 @@ export async function getAllDocumentTypes(signal?: AbortSignal): Promise<Documen
   return apiGet<DocumentTypeDto[]>('/document-types/all', undefined, signal);
 }
 
-export async function createDocumentType(data: { code: string; name: string; description?: string; mandatoryFor?: string }): Promise<DocumentTypeDto> {
+export async function createDocumentType(data: { code: string; name: string; description?: string; mandatoryFor?: string; importOrder?: number | null }): Promise<DocumentTypeDto> {
   return apiPost<DocumentTypeDto>('/document-types', data);
 }
 
-export async function updateDocumentType(id: number, data: { code: string; name: string; description?: string; mandatoryFor?: string; active?: boolean }): Promise<DocumentTypeDto> {
+export async function updateDocumentType(id: number, data: { code: string; name: string; description?: string; mandatoryFor?: string; importOrder?: number | null; active?: boolean }): Promise<DocumentTypeDto> {
   return apiPut<DocumentTypeDto>(`/document-types/${id}`, data);
 }
 

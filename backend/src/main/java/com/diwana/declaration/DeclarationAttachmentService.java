@@ -138,4 +138,12 @@ public class DeclarationAttachmentService {
 
         return attachmentRepository.save(attachment);
     }
+
+    @Transactional
+    public DeclarationAttachment markImported(Long attachmentId) {
+        DeclarationAttachment attachment = attachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new EntityNotFoundException("Attachment", attachmentId));
+        attachment.setImported(true);
+        return attachmentRepository.save(attachment);
+    }
 }

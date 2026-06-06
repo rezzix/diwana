@@ -253,6 +253,7 @@ export default function CreateDeclarationPage() {
               onUpload={handleUpload}
               onDelete={handleDeleteAtt}
               onReplace={handleReplaceAtt}
+              onAttachmentsChanged={() => { if (createdId) getAttachments(createdId).then(setAttachments).catch(() => {}); }}
               error={error}
               setError={setError}
             />

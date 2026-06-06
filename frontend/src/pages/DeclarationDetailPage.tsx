@@ -407,6 +407,7 @@ export default function DeclarationDetailPage() {
           onUpload={handleUpload}
           onDelete={handleDeleteAtt}
           onReplace={handleReplaceAtt}
+          onAttachmentsChanged={() => { if (id) getAttachments(Number(id)).then(setAttachments).catch(() => {}); }}
           error={error}
           setError={setError}
         />

@@ -45,10 +45,10 @@ export default function AdminPage() {
   const [docTypes, setDocTypes] = useState<DocumentTypeDto[]>([]);
   const [docTypesLoading, setDocTypesLoading] = useState(true);
   const [showCreateDocType, setShowCreateDocType] = useState(false);
-  const [docTypeForm, setDocTypeForm] = useState({ code: '', name: '', description: '', mandatoryFor: '' });
+  const [docTypeForm, setDocTypeForm] = useState({ code: '', name: '', description: '', mandatoryFor: '', importOrder: '' });
   const [docTypeCreating, setDocTypeCreating] = useState(false);
   const [editingDocType, setEditingDocType] = useState<DocumentTypeDto | null>(null);
-  const [editDocTypeForm, setEditDocTypeForm] = useState({ code: '', name: '', description: '', mandatoryFor: '', active: true });
+  const [editDocTypeForm, setEditDocTypeForm] = useState({ code: '', name: '', description: '', mandatoryFor: '', importOrder: '', active: true });
 
   const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -159,10 +159,11 @@ export default function AdminPage() {
     setError('');
     setSuccess('');
     try {
-      await createDocumentType(docTypeForm);
+      const { importOrder, ...rest } = docTypeForm;
+      await createDocumentType({ ...rest, importOrder: importOrder ? Number(importOrder) : null });
       setSuccess(`Document type "${docTypeForm.name}" created`);
       setShowCreateDocType(false);
-      setDocTypeForm({ code: '', name: '', description: '', mandatoryFor: '' });
+      setDocTypeForm({ code: '', name: '', description: '', mandatoryFor: '', importOrder: '' });
       fetchDocTypes();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create document type');
@@ -173,7 +174,7 @@ export default function AdminPage() {
 
   const handleEditDocType = (dt: DocumentTypeDto) => {
     setEditingDocType(dt);
-    setEditDocTypeForm({ code: dt.code, name: dt.name, description: dt.description || '', mandatoryFor: dt.mandatoryFor || '', active: dt.active });
+    setEditDocTypeForm({ code: dt.code, name: dt.name, description: dt.description || '', mandatoryFor: dt.mandatoryFor || '', importOrder: dt.importOrder != null ? String(dt.importOrder) : '', active: dt.active });
   };
 
   const handleUpdateDocType = async (e: FormEvent) => {
@@ -182,7 +183,8 @@ export default function AdminPage() {
     setError('');
     setSuccess('');
     try {
-      await updateDocumentType(editingDocType.id, editDocTypeForm);
+      const { importOrder, ...rest } = editDocTypeForm;
+      await updateDocumentType(editingDocType.id, { ...rest, importOrder: importOrder ? Number(importOrder) : null });
       setSuccess(`Document type "${editDocTypeForm.name}" updated`);
       setEditingDocType(null);
       fetchDocTypes();
@@ -473,6 +475,14 @@ export default function AdminPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
                     <p className="mt-1 text-xs text-gray-400">Empty = optional, * = all goods, comma-separated HS prefixes = specific goods</p>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Import Order</label>
+                    <input type="number" min="1" value={docTypeForm.importOrder}
+                      onChange={(e) => setDocTypeForm({ ...docTypeForm, importOrder: e.target.value })}
+                      placeholder="e.g. 1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-gray-400">Empty = not importable. Lower number = higher priority (imported first)</p>
+                  </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-2">
                   <button type="submit" disabled={docTypeCreating}
@@ -513,6 +523,14 @@ export default function AdminPage() {
                       className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
                     <p className="mt-1 text-xs text-amber-600">Empty = optional, * = all goods, comma-separated HS prefixes = specific goods</p>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Import Order</label>
+                    <input type="number" min="1" value={editDocTypeForm.importOrder}
+                      onChange={(e) => setEditDocTypeForm({ ...editDocTypeForm, importOrder: e.target.value })}
+                      placeholder="e.g. 1"
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-amber-600">Empty = not importable. Lower number = higher priority</p>
+                  </div>
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={editDocTypeForm.active}
@@ -543,15 +561,16 @@ export default function AdminPage() {
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Name</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Description</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Mandatory For</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Import Order</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {docTypesLoading ? (
-                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading...</td></tr>
                   ) : docTypes.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">No document types found</td></tr>
+                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No document types found</td></tr>
                   ) : docTypes.map((dt) => (
                     <tr key={dt.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono text-xs text-gray-600">{dt.code}</td>
@@ -566,6 +585,7 @@ export default function AdminPage() {
                           {formatMandatoryFor(dt.mandatoryFor)}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">{dt.importOrder != null ? dt.importOrder : '—'}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-block w-2 h-2 rounded-full ${dt.active ? 'bg-green-500' : 'bg-red-500'}`} />
                       </td>

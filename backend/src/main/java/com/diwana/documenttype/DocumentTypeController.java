@@ -65,6 +65,7 @@ public class DocumentTypeController {
                 docType.getName(),
                 docType.getDescription(),
                 docType.getMandatoryFor(),
+                docType.getImportOrder(),
                 docType.isActive(),
                 docType.getCreatedAt() != null ? docType.getCreatedAt().toString() : null,
                 docType.getUpdatedAt() != null ? docType.getUpdatedAt().toString() : null

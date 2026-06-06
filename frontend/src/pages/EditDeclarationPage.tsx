@@ -270,6 +270,7 @@ export default function EditDeclarationPage() {
             onUpload={handleUpload}
             onDelete={handleDeleteAtt}
             onReplace={handleReplaceAtt}
+            onAttachmentsChanged={() => { if (id) getAttachments(Number(id)).then(setAttachments).catch(() => {}); }}
             error={error}
             setError={setError}
           />

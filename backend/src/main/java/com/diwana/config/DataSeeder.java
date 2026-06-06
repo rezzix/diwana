@@ -135,20 +135,21 @@ public class DataSeeder implements CommandLineRunner {
         if (documentTypeRepository.count() > 0) return;
 
         List<DocumentType> docTypes = List.of(
-            createDocType("COMMERCIAL_INVOICE", "Commercial Invoice", "Invoice from the supplier for goods purchased", "*"),
-            createDocType("CERTIFICATE_OF_ORIGIN", "Certificate of Origin", "Certifies the country where goods were manufactured", "*"),
-            createDocType("PACKING_LIST", "Packing List", "Detailed list of items in each package/shipment", null)
+            createDocType("COMMERCIAL_INVOICE", "Commercial Invoice", "Invoice from the supplier for goods purchased", "*", 1),
+            createDocType("CERTIFICATE_OF_ORIGIN", "Certificate of Origin", "Certifies the country where goods were manufactured", "*", 2),
+            createDocType("PACKING_LIST", "Packing List", "Detailed list of items in each package/shipment", null, 3)
         );
 
         documentTypeRepository.saveAll(docTypes);
     }
 
-    private DocumentType createDocType(String code, String name, String description, String mandatoryFor) {
+    private DocumentType createDocType(String code, String name, String description, String mandatoryFor, Integer importOrder) {
         DocumentType docType = new DocumentType();
         docType.setCode(code);
         docType.setName(name);
         docType.setDescription(description);
         docType.setMandatoryFor(mandatoryFor);
+        docType.setImportOrder(importOrder);
         docType.setActive(true);
         return docType;
     }
