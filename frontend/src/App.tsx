@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { getDashboardStats, type DashboardStats } from '@/api/dashboard';
 import LoadingScreen from '@/components/common/LoadingScreen';
@@ -47,8 +47,20 @@ const statusCardBg: Record<string, string> = {
 function HomePage() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const location = useLocation();
   const role = user?.role;
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [accessDeniedMsg, setAccessDeniedMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const state = location.state as { accessDenied?: boolean; requiredRoles?: string[] } | null;
+    if (state?.accessDenied) {
+      const roles = state.requiredRoles?.join(', ') || 'specific';
+      setAccessDeniedMsg(`You do not have permission to view that page. Required role: ${roles}`);
+      // Clear the state so the message doesn't reappear on navigation
+      window.history.replaceState({}, '');
+    }
+  }, [location.state]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -82,6 +94,12 @@ function HomePage() {
         </div>
       </header>
       <main className="max-w-4xl mx-auto p-6 space-y-6">
+        {accessDeniedMsg && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-lg px-4 py-3 flex items-center justify-between">
+            <span>{accessDeniedMsg}</span>
+            <button onClick={() => setAccessDeniedMsg(null)} className="text-amber-500 hover:text-amber-700 ml-3">&times;</button>
+          </div>
+        )}
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
 
         {/* Stats overview */}

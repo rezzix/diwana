@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/stores/authStore';
 import { getDevUsers } from '@/api/auth';
 import type { DevUserDto } from '@/types';
 import Spinner from '@/components/common/Spinner';
@@ -14,6 +15,20 @@ const roleBadge: Record<string, string> = {
 
 const roleOrder = ['ADMIN', 'DECLARANT', 'CONTROLLER'];
 
+// Paths that require specific roles — used to prevent redirecting a newly logged-in user to a page they can't access
+const pathRoleMap: Record<string, string[]> = {
+  '/admin': ['ADMIN'],
+  '/declarations/new': ['DECLARANT'],
+};
+
+function canAccessPath(path: string, role: string): boolean {
+  // Check exact matches first
+  if (pathRoleMap[path] && !pathRoleMap[path].includes(role)) return false;
+  // Check prefix matches (e.g. /declarations/123/edit requires DECLARANT)
+  if (path.startsWith('/declarations/') && path.endsWith('/edit') && role !== 'DECLARANT') return false;
+  return true;
+}
+
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -23,6 +38,15 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname ?? '/';
+
+  const safeNavigate = (path: string) => {
+    const user = useAuthStore.getState().user;
+    if (user && canAccessPath(path, user.role)) {
+      navigate(path, { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -42,7 +66,7 @@ export default function LoginPage() {
     clearError();
     try {
       await login(u.username, 'password123');
-      navigate(from, { replace: true });
+      safeNavigate(from);
     } catch {
       // login will set error state
     }
@@ -52,7 +76,7 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       await login(username, password);
-      navigate(from, { replace: true });
+      safeNavigate(from);
     } catch {
       // login will set error state
     }
