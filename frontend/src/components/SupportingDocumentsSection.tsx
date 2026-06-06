@@ -147,6 +147,15 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
     return () => controller.abort();
   }, [attachment.id, declarationId, attachment.vlmText]);
 
+  let parsedData: InvoiceData | null = null;
+  if (vlmText) {
+    try {
+      parsedData = JSON.parse(vlmText);
+    } catch {
+      parsedData = null;
+    }
+  }
+
   // Compute line item validation
   const lineValidations = parsedData?.lineItems?.map((item) => validateVlmLine(item as VlmLineItem)) ?? [];
   const validLineIndices = lineValidations
@@ -185,15 +194,6 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
       onClose();
     }
   };
-
-  let parsedData: InvoiceData | null = null;
-  if (vlmText) {
-    try {
-      parsedData = JSON.parse(vlmText);
-    } catch {
-      parsedData = null;
-    }
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
