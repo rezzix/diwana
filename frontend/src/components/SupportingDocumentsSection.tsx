@@ -119,7 +119,17 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported }: {
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
-        setError(err instanceof Error ? err.message : 'VLM analysis failed. Please try again.');
+        // Extract error message from ApiResponse or AxiosError
+        let message = 'VLM analysis failed. Please try again.';
+        if (err && typeof err === 'object' && 'response' in err) {
+          const axiosErr = err as { response?: { data?: { data?: string } } };
+          if (axiosErr.response?.data?.data) {
+            message = axiosErr.response.data.data;
+          }
+        } else if (err instanceof Error) {
+          message = err.message;
+        }
+        setError(message);
         setLoading(false);
       });
     return () => controller.abort();
