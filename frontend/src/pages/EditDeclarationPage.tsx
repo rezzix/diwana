@@ -8,6 +8,7 @@ import { getAttachments, deleteAttachment, type AttachmentDto } from '@/api/atta
 import { getDocumentTypes, type DocumentTypeDto } from '@/api/documentTypes';
 import { resolveTariffRate } from '@/api/tariffEstimate';
 import SupportingDocumentsSection from '@/components/SupportingDocumentsSection';
+import HsCodeAutocomplete from '@/components/HsCodeAutocomplete';
 
 interface LineForm {
   hsCode: string;
@@ -287,8 +288,13 @@ export default function EditDeclarationPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">HS Code *</label>
-                <input type="text" value={lineForm.hsCode} onChange={(e) => setLineForm({ ...lineForm, hsCode: e.target.value })}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g. 8471.30" />
+                <HsCodeAutocomplete
+                  tariffRates={tariffRates}
+                  value={lineForm.hsCode}
+                  onChange={(hsCode) => setLineForm({ ...lineForm, hsCode })}
+                  onSelect={(hsCode, description) => setLineForm({ ...lineForm, hsCode, description })}
+                  placeholder="e.g. 8471.30"
+                />
               </div>
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Description *</label>
