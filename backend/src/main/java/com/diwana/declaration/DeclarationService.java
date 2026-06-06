@@ -28,18 +28,24 @@ public class DeclarationService {
     private final TariffRateRepository tariffRateRepository;
     private final OriginRepository originRepository;
     private final DeclarationAuditLogRepository auditLogRepository;
+    private final DeclarationAttachmentRepository attachmentRepository;
+    private final com.diwana.storage.StorageService storageService;
 
     private final AtomicLong numberCounter = new AtomicLong(System.currentTimeMillis());
 
     public DeclarationService(DeclarationRepository declarationRepository, CompanyService companyService,
                                UserService userService, TariffRateRepository tariffRateRepository,
-                               OriginRepository originRepository, DeclarationAuditLogRepository auditLogRepository) {
+                               OriginRepository originRepository, DeclarationAuditLogRepository auditLogRepository,
+                               DeclarationAttachmentRepository attachmentRepository,
+                               com.diwana.storage.StorageService storageService) {
         this.declarationRepository = declarationRepository;
         this.companyService = companyService;
         this.userService = userService;
         this.tariffRateRepository = tariffRateRepository;
         this.originRepository = originRepository;
         this.auditLogRepository = auditLogRepository;
+        this.attachmentRepository = attachmentRepository;
+        this.storageService = storageService;
     }
 
     @Transactional
@@ -327,7 +333,17 @@ public class DeclarationService {
         if (!declaration.getDeclarant().getId().equals(declarant.getId())) {
             throw new BadRequestException("You can only delete your own declarations");
         }
-        logAction(declaration, DeclarationAuditLog.Action.DELETED, declaration.getStatus().name(), null, null, declarant);
+
+        // Delete attachments (physical files + DB records) before deleting the declaration
+        List<DeclarationAttachment> attachments = attachmentRepository.findAllByDeclarationId(id);
+        for (DeclarationAttachment att : attachments) {
+            storageService.delete(att.getFilePath());
+        }
+        attachmentRepository.deleteByDeclarationId(id);
+
+        // Delete audit logs before deleting the declaration
+        auditLogRepository.deleteByDeclarationId(id);
+
         declarationRepository.delete(declaration);
     }
 
