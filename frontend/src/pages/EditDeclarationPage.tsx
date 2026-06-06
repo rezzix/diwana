@@ -48,6 +48,9 @@ export default function EditDeclarationPage() {
   const [uploadType, setUploadType] = useState('COMMERCIAL_INVOICE');
   const [uploading, setUploading] = useState(false);
 
+  const mandatoryDocTypes = docTypes.filter((dt) => dt.mandatoryFor);
+  const mandatoryDocsUploaded = mandatoryDocTypes.every((dt) => attachments.some((att) => att.docType === dt.code));
+
   useEffect(() => {
     if (!id) return;
     const controller = new AbortController();
@@ -285,6 +288,11 @@ export default function EditDeclarationPage() {
                 📋 View Reference Tariff Rates
               </Link>
             </div>
+            {!mandatoryDocsUploaded && mandatoryDocTypes.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-lg px-4 py-2">
+                Upload all mandatory documents before adding goods lines.
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">HS Code *</label>
@@ -346,7 +354,9 @@ export default function EditDeclarationPage() {
               </div>
             </div>
             <button type="button" onClick={handleAddLine}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors">
+              disabled={!mandatoryDocsUploaded && mandatoryDocTypes.length > 0}
+              title={!mandatoryDocsUploaded && mandatoryDocTypes.length > 0 ? 'Upload all mandatory documents first' : undefined}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               + Add Goods Line
             </button>
           </section>

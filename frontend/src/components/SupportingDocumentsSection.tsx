@@ -93,7 +93,15 @@ export default function SupportingDocumentsSection({
 }: SupportingDocumentsSectionProps) {
   const [viewingAttachment, setViewingAttachment] = useState<AttachmentDto | null>(null);
 
-  const mandatoryDocTypes = docTypes.filter((dt) => dt.mandatoryFor);
+  const mandatoryDocTypes = docTypes
+    .filter((dt) => dt.mandatoryFor)
+    .sort((a, b) => {
+      // Sort by importOrder ascending; null importOrder goes last
+      if (a.importOrder != null && b.importOrder == null) return -1;
+      if (a.importOrder == null && b.importOrder != null) return 1;
+      if (a.importOrder != null && b.importOrder != null) return a.importOrder - b.importOrder;
+      return a.name.localeCompare(b.name);
+    });
 
   // Map first attachment per docType
   const attachmentsByType: Record<string, AttachmentDto> = {};
