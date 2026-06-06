@@ -40,8 +40,8 @@ public class VlmService {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
 
-    private static final int RENDER_DPI = 150;
-    private static final int MAX_PAGES = 5;
+    private static final int RENDER_DPI = 72;
+    private static final int MAX_PAGES = 3;
 
     private static final String SYSTEM_PROMPT = """
             You are an invoice data extraction assistant. Extract structured data from the invoice document image(s).
@@ -89,8 +89,8 @@ public class VlmService {
         this.objectMapper = objectMapper;
         RestTemplate template = new RestTemplate();
         template.setRequestFactory(new org.springframework.http.client.SimpleClientHttpRequestFactory() {{
-            setConnectTimeout(java.time.Duration.ofSeconds(10));
-            setReadTimeout(java.time.Duration.ofMinutes(5));
+            setConnectTimeout(java.time.Duration.ofSeconds(15));
+            setReadTimeout(java.time.Duration.ofMinutes(10));
         }});
         this.restTemplate = template;
     }
@@ -184,8 +184,7 @@ public class VlmService {
                             Map.of("role", "system", "content", SYSTEM_PROMPT),
                             Map.of("role", "user", "content", content)
                     ),
-                    "max_tokens", 16384,
-                    "response_format", Map.of("type", "json_object")
+                    "max_tokens", 16384
             );
 
             HttpHeaders headers = new HttpHeaders();
