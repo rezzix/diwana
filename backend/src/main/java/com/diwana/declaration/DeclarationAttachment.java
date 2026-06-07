@@ -57,6 +57,9 @@ public class DeclarationAttachment {
     @Column(name = "vlm_error", columnDefinition = "TEXT")
     private String vlmError;
 
+    @Column(name = "vlm_date")
+    private Instant vlmDate;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -93,6 +96,8 @@ public class DeclarationAttachment {
     public void setVlmStatus(VlmStatus vlmStatus) { this.vlmStatus = vlmStatus; }
     public String getVlmError() { return vlmError; }
     public void setVlmError(String vlmError) { this.vlmError = vlmError; }
+    public Instant getVlmDate() { return vlmDate; }
+    public void setVlmDate(Instant vlmDate) { this.vlmDate = vlmDate; }
     public Instant getCreatedAt() { return createdAt; }
 
     public enum VlmStatus {

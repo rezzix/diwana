@@ -27,14 +27,15 @@ public class DeclarationAttachmentController {
         this.authHelper = authHelper;
     }
 
-    public record AttachmentDto(Long id, String docType, String fileName, String contentType, long fileSize, boolean imported, String vlmText, DeclarationAttachment.VlmStatus vlmStatus, String vlmError, String createdAt) {}
+    public record AttachmentDto(Long id, String docType, String fileName, String contentType, long fileSize, boolean imported, String vlmText, DeclarationAttachment.VlmStatus vlmStatus, String vlmError, String vlmDate, String createdAt) {}
 
     @GetMapping
     @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<List<AttachmentDto>>> list(@PathVariable Long declarationId) {
         List<AttachmentDto> attachments = attachmentService.getByDeclarationId(declarationId).stream()
                 .map(a -> new AttachmentDto(a.getId(), a.getDocType(), a.getFileName(),
-                        a.getContentType(), a.getFileSize(), a.isImported(), a.getVlmText(), a.getVlmStatus(), a.getVlmError(), a.getCreatedAt().toString()))
+                        a.getContentType(), a.getFileSize(), a.isImported(), a.getVlmText(), a.getVlmStatus(), a.getVlmError(),
+                        a.getVlmDate() != null ? a.getVlmDate().toString() : null, a.getCreatedAt().toString()))
                 .toList();
         return ResponseEntity.ok(ApiResponse.of(attachments));
     }
@@ -62,7 +63,8 @@ public class DeclarationAttachmentController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
-                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getVlmStatus(), attachment.getVlmError(), attachment.getCreatedAt().toString())
+                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getVlmStatus(), attachment.getVlmError(),
+                        attachment.getVlmDate() != null ? attachment.getVlmDate().toString() : null, attachment.getCreatedAt().toString())
         ));
     }
 
@@ -93,7 +95,8 @@ public class DeclarationAttachmentController {
         return ResponseEntity.ok(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
-                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getVlmStatus(), attachment.getVlmError(), attachment.getCreatedAt().toString())
+                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getVlmStatus(), attachment.getVlmError(),
+                        attachment.getVlmDate() != null ? attachment.getVlmDate().toString() : null, attachment.getCreatedAt().toString())
         ));
     }
 
@@ -104,7 +107,8 @@ public class DeclarationAttachmentController {
         return ResponseEntity.ok(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
-                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getVlmStatus(), attachment.getVlmError(), attachment.getCreatedAt().toString())
+                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getVlmStatus(), attachment.getVlmError(),
+                        attachment.getVlmDate() != null ? attachment.getVlmDate().toString() : null, attachment.getCreatedAt().toString())
         ));
     }
 

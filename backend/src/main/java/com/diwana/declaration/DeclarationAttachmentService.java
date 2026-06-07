@@ -161,6 +161,7 @@ public class DeclarationAttachmentService {
         attachment.setVlmProcessingTimeMs(null);
         attachment.setVlmStatus(null);
         attachment.setVlmError(null);
+        attachment.setVlmDate(null);
         attachment.setImported(false);
 
         return attachmentRepository.save(attachment);
@@ -197,6 +198,7 @@ public class DeclarationAttachmentService {
         // Set processing status and save immediately (returns before VLM completes)
         attachment.setVlmStatus(DeclarationAttachment.VlmStatus.PROCESSING);
         attachment.setVlmError(null);
+        attachment.setVlmDate(java.time.Instant.now());
         attachmentRepository.save(attachment);
 
         // Trigger async VLM processing
@@ -241,7 +243,8 @@ public class DeclarationAttachmentService {
         return new SmartImportResult(attachment.getId(), attachment.getDocType(),
                 attachment.getFileName(), attachment.isImported(), attachment.getVlmText(),
                 attachment.getVlmModel(), attachment.getVlmUrl(), attachment.getVlmProcessingTimeMs(),
-                attachment.getVlmStatus(), attachment.getVlmError());
+                attachment.getVlmStatus(), attachment.getVlmError(),
+                attachment.getVlmDate() != null ? attachment.getVlmDate().toString() : null);
     }
 
     public boolean isImportableDocType(String docType) {
