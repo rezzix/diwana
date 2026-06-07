@@ -38,6 +38,7 @@ export default function EditDeclarationPage() {
   const [declarationNumber, setDeclarationNumber] = useState('');
   const [lines, setLines] = useState<LineItemRequest[]>([]);
   const [lineForm, setLineForm] = useState<LineForm>(emptyLine());
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [customsOffice, setCustomsOffice] = useState('');
   const [notes, setNotes] = useState('');
   const [company, setCompany] = useState<{ name: string; ice: string | null } | null>(null);
@@ -112,7 +113,7 @@ export default function EditDeclarationPage() {
       setError('HS code must be in format XXXX or XXXX.XX (e.g. 8471.30)');
       return;
     }
-    setLines([...lines, {
+    const line = {
       hsCode: lineForm.hsCode,
       description: lineForm.description,
       countryOfOrigin: lineForm.countryOfOrigin || undefined,
@@ -121,9 +122,37 @@ export default function EditDeclarationPage() {
       unitPrice: price,
       totalValue: total,
       currency: lineForm.currency,
-    }]);
+    };
+    if (editingIndex != null) {
+      // Update existing line
+      const updated = [...lines];
+      updated[editingIndex] = line;
+      setLines(updated);
+      setEditingIndex(null);
+    } else {
+      // Add new line
+      setLines([...lines, line]);
+    }
     setLineForm(emptyLine());
     setError('');
+  };
+
+  const handleEditLine = (i: number) => {
+    const li = lines[i];
+    setLineForm({
+      hsCode: li.hsCode,
+      description: li.description,
+      countryOfOrigin: li.countryOfOrigin || '',
+      quantity: String(li.quantity),
+      unit: li.unit || '',
+      unitPrice: String(li.unitPrice),
+      totalValue: String(li.totalValue),
+      currency: li.currency || 'MAD',
+    });
+    setEditingIndex(i);
+    setError('');
+    // Scroll to the form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleRemoveLine = (i: number) => setLines(lines.filter((_, idx) => idx !== i));
@@ -288,7 +317,7 @@ export default function EditDeclarationPage() {
           {/* Add line */}
           <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Add Goods Line</h2>
+              <h2 className="font-semibold text-gray-900">{editingIndex != null ? `Edit Goods Line (${editingIndex + 1})` : 'Add Goods Line'}</h2>
               <Link to="/tariff-rates" target="_blank" rel="noopener noreferrer"
                 className="text-xs text-primary-600 hover:underline">
                 📋 View Reference Tariff Rates
@@ -363,8 +392,14 @@ export default function EditDeclarationPage() {
               disabled={!mandatoryDocsUploaded && mandatoryDocTypes.length > 0}
               title={!mandatoryDocsUploaded && mandatoryDocTypes.length > 0 ? 'Upload all mandatory documents first' : undefined}
               className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-              + Add Goods Line
+              {editingIndex != null ? 'Update Goods Line' : '+ Add Goods Line'}
             </button>
+            {editingIndex != null && (
+              <button type="button" onClick={() => { setEditingIndex(null); setLineForm(emptyLine()); }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                Cancel Edit
+              </button>
+            )}
           </section>
 
           {/* Lines table with estimates */}
@@ -384,7 +419,7 @@ export default function EditDeclarationPage() {
                   <th className="text-right px-3 py-2 font-medium text-gray-700">Est. Duty</th>
                   <th className="text-right px-3 py-2 font-medium text-gray-700">Est. VAT</th>
                   <th className="text-center px-3 py-2 font-medium text-gray-700">Curr</th>
-                  <th className="w-10"></th>
+                  <th className="w-14"></th>
                 </tr></thead>
                 <tbody>
                   {lines.map((li, i) => {
@@ -399,7 +434,8 @@ export default function EditDeclarationPage() {
                         <td className="px-3 py-2 text-right text-amber-700">{est.dutyAmount.toFixed(2)} <span className="text-xs text-gray-400">({est.dutyRate}%)</span></td>
                         <td className="px-3 py-2 text-right text-blue-700">{est.vatAmount.toFixed(2)} <span className="text-xs text-gray-400">({est.vatRate}%)</span></td>
                         <td className="px-3 py-2 text-center text-xs text-gray-500">{li.currency}</td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-3 py-2 text-center whitespace-nowrap space-x-2">
+                          <button type="button" onClick={() => handleEditLine(i)} className="text-blue-500 hover:text-blue-700 text-xs">Edit</button>
                           <button type="button" onClick={() => handleRemoveLine(i)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
                         </td>
                       </tr>
