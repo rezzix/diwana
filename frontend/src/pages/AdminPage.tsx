@@ -9,6 +9,7 @@ import { getAllTariffRates, createTariffRate, updateTariffRate, deactivateTariff
 import type { TariffRateDto } from '@/api/declarations';
 import { getOrigins, type OriginDto } from '@/api/origins';
 import { listJobs, toggleJob, type JobConfigDto } from '@/api/jobs';
+import { listAiModels, createAiModel, updateAiModel, deleteAiModel, type AiModelDto, type CreateAiModelRequest } from '@/api/aiModels';
 import HsCodeAutocomplete from '@/components/HsCodeAutocomplete';
 import type { UserDto, PaginationInfo } from '@/types';
 
@@ -20,7 +21,7 @@ const roleBadge: Record<string, string> = {
 
 export default function AdminPage() {
   // Tab navigation
-  const [activeTab, setActiveTab] = useState<'users' | 'document-types' | 'tariff-rates' | 'jobs'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'document-types' | 'tariff-rates' | 'jobs' | 'ai-models'>('users');
 
   // Users state
   const [users, setUsers] = useState<UserDto[]>([]);
@@ -71,6 +72,15 @@ export default function AdminPage() {
   const [jobs, setJobs] = useState<JobConfigDto[]>([]);
   const [jobsLoading, setJobsLoading] = useState(true);
   const [togglingJobId, setTogglingJobId] = useState<number | null>(null);
+
+  // AI Models state
+  const [aiModels, setAiModels] = useState<AiModelDto[]>([]);
+  const [aiModelsLoading, setAiModelsLoading] = useState(true);
+  const [showCreateAiModel, setShowCreateAiModel] = useState(false);
+  const [aiModelForm, setAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true });
+  const [aiModelCreating, setAiModelCreating] = useState(false);
+  const [editingAiModel, setEditingAiModel] = useState<AiModelDto | null>(null);
+  const [editAiModelForm, setEditAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true });
 
   const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -127,6 +137,18 @@ export default function AdminPage() {
     }
   };
 
+  const fetchAiModels = async () => {
+    setAiModelsLoading(true);
+    try {
+      const data = await listAiModels();
+      setAiModels(data);
+    } catch {
+      setError('Failed to load AI models');
+    } finally {
+      setAiModelsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     fetchUsers(controller.signal);
@@ -170,6 +192,12 @@ export default function AdminPage() {
   useEffect(() => {
     if (activeTab === 'jobs') {
       fetchJobs();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'ai-models') {
+      fetchAiModels();
     }
   }, [activeTab]);
 
@@ -402,6 +430,14 @@ export default function AdminPage() {
             }`}
           >
             Jobs
+          </button>
+          <button
+            onClick={() => setActiveTab('ai-models')}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'ai-models' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            AI Models
           </button>
         </div>
 
@@ -1026,6 +1062,226 @@ export default function AdminPage() {
                         >
                           {togglingJobId === job.id ? 'Toggling...' : job.enabled ? 'Disable' : 'Enable'}
                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* AI Models tab */}
+        {activeTab === 'ai-models' && (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Manage AI models used for VLM/LLM inference. Models are used for smart import and other AI features.</p>
+              <button
+                onClick={() => { setShowCreateAiModel(!showCreateAiModel); setEditingAiModel(null); }}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors"
+              >
+                {showCreateAiModel ? 'Cancel' : '+ Add AI Model'}
+              </button>
+            </div>
+
+            {showCreateAiModel && (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setAiModelCreating(true);
+                setError('');
+                setSuccess('');
+                try {
+                  await createAiModel(aiModelForm as CreateAiModelRequest);
+                  setSuccess(`AI model "${aiModelForm.model}" created`);
+                  setShowCreateAiModel(false);
+                  setAiModelForm({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true });
+                  fetchAiModels();
+                } catch (err: unknown) {
+                  setError(err instanceof Error ? err.message : 'Failed to create AI model');
+                } finally {
+                  setAiModelCreating(false);
+                }
+              }} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                <h2 className="font-semibold text-gray-900">Add AI Model</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Provider *</label>
+                    <input type="text" required value={aiModelForm.provider}
+                      onChange={(e) => setAiModelForm({ ...aiModelForm, provider: e.target.value })}
+                      placeholder="e.g. Together AI"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Model *</label>
+                    <input type="text" required value={aiModelForm.model}
+                      onChange={(e) => setAiModelForm({ ...aiModelForm, model: e.target.value })}
+                      placeholder="e.g. google/gemma-4-31B-it"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">URL *</label>
+                    <input type="url" required value={aiModelForm.url}
+                      onChange={(e) => setAiModelForm({ ...aiModelForm, url: e.target.value })}
+                      placeholder="e.g. https://api.together.ai/v1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">API Key *</label>
+                    <input type="password" required value={aiModelForm.apiKey}
+                      onChange={(e) => setAiModelForm({ ...aiModelForm, apiKey: e.target.value })}
+                      placeholder="API key"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                    <select value={aiModelForm.type}
+                      onChange={(e) => setAiModelForm({ ...aiModelForm, type: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="VLM">VLM (Vision)</option>
+                      <option value="LLM">LLM (Text only)</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={aiModelForm.active}
+                        onChange={(e) => setAiModelForm({ ...aiModelForm, active: e.target.checked })}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      <span className="text-sm text-gray-700">Active</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="submit" disabled={aiModelCreating}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                    {aiModelCreating ? 'Creating...' : 'Create'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {editingAiModel && (
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setError('');
+                setSuccess('');
+                try {
+                  await updateAiModel(editingAiModel.id, editAiModelForm);
+                  setSuccess(`AI model "${editAiModelForm.model}" updated`);
+                  setEditingAiModel(null);
+                  fetchAiModels();
+                } catch (err: unknown) {
+                  setError(err instanceof Error ? err.message : 'Failed to update AI model');
+                }
+              }} className="bg-amber-50 border border-amber-200 rounded-lg p-6 space-y-4">
+                <h2 className="font-semibold text-amber-900">Edit AI Model</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                    <input type="text" required value={editAiModelForm.provider}
+                      onChange={(e) => setEditAiModelForm({ ...editAiModelForm, provider: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                    <input type="text" required value={editAiModelForm.model}
+                      onChange={(e) => setEditAiModelForm({ ...editAiModelForm, model: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                    <input type="url" required value={editAiModelForm.url}
+                      onChange={(e) => setEditAiModelForm({ ...editAiModelForm, url: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                    <input type="password" required value={editAiModelForm.apiKey}
+                      onChange={(e) => setEditAiModelForm({ ...editAiModelForm, apiKey: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select value={editAiModelForm.type}
+                      onChange={(e) => setEditAiModelForm({ ...editAiModelForm, type: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="VLM">VLM (Vision)</option>
+                      <option value="LLM">LLM (Text only)</option>
+                    </select>
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={editAiModelForm.active}
+                        onChange={(e) => setEditAiModelForm({ ...editAiModelForm, active: e.target.checked })}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      <span className="text-sm text-gray-700">Active</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button type="button" onClick={() => setEditingAiModel(null)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</button>
+                  <button type="submit"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 transition-colors">Save</button>
+                </div>
+              </form>
+            )}
+
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Provider</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Model</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">URL</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Type</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aiModelsLoading ? (
+                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                  ) : aiModels.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">No AI models found</td></tr>
+                  ) : aiModels.map((m) => (
+                    <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{m.provider}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-600">{m.model}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[200px]" title={m.url}>{m.url}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                          m.type === 'VLM' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                        }`}>{m.type}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-block w-2 h-2 rounded-full ${m.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                      </td>
+                      <td className="px-4 py-3 text-right space-x-2">
+                        <button onClick={() => {
+                          setEditingAiModel(m);
+                          setEditAiModelForm({ provider: m.provider, model: m.model, url: m.url, apiKey: m.apiKey, type: m.type, active: m.active });
+                          setShowCreateAiModel(false);
+                        }}
+                          className="text-xs px-2 py-1 bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition-colors">
+                          Edit
+                        </button>
+                        {m.active && (
+                          <button onClick={async () => {
+                            if (!confirm(`Deactivate AI model "${m.model}"?`)) return;
+                            setError('');
+                            setSuccess('');
+                            try {
+                              await deleteAiModel(m.id);
+                              setSuccess(`AI model "${m.model}" deactivated`);
+                              fetchAiModels();
+                            } catch {
+                              setError('Failed to delete AI model');
+                            }
+                          }}
+                            className="text-xs px-2 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 transition-colors">
+                            Deactivate
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

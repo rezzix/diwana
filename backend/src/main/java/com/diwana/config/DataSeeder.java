@@ -8,6 +8,8 @@ import com.diwana.documenttype.DocumentType;
 import com.diwana.documenttype.DocumentTypeRepository;
 import com.diwana.hscode.HsCode;
 import com.diwana.hscode.HsCodeRepository;
+import com.diwana.aimodel.AiModel;
+import com.diwana.aimodel.AiModelRepository;
 import com.diwana.job.JobConfig;
 import com.diwana.job.JobConfigRepository;
 import com.diwana.origin.Origin;
@@ -41,6 +43,8 @@ public class DataSeeder implements CommandLineRunner {
     private final DocumentTypeRepository documentTypeRepository;
     private final HsCodeRepository hsCodeRepository;
     private final JobConfigRepository jobConfigRepository;
+    private final AiModelRepository aiModelRepository;
+    private final AiKeyLoader aiKeyLoader;
 
     public DataSeeder(PasswordEncoder passwordEncoder,
                       UserRepository userRepository,
@@ -50,7 +54,9 @@ public class DataSeeder implements CommandLineRunner {
                       CustomsOfficeRepository customsOfficeRepository,
                       DocumentTypeRepository documentTypeRepository,
                       HsCodeRepository hsCodeRepository,
-                      JobConfigRepository jobConfigRepository) {
+                      JobConfigRepository jobConfigRepository,
+                      AiModelRepository aiModelRepository,
+                      AiKeyLoader aiKeyLoader) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
@@ -60,6 +66,8 @@ public class DataSeeder implements CommandLineRunner {
         this.documentTypeRepository = documentTypeRepository;
         this.hsCodeRepository = hsCodeRepository;
         this.jobConfigRepository = jobConfigRepository;
+        this.aiModelRepository = aiModelRepository;
+        this.aiKeyLoader = aiKeyLoader;
     }
 
     @Override
@@ -75,6 +83,7 @@ public class DataSeeder implements CommandLineRunner {
         seedHsCodes();
         seedTariffRates();
         seedJobConfigs();
+        seedAiModels();
         seedUsers();
     }
 
@@ -487,6 +496,39 @@ public class DataSeeder implements CommandLineRunner {
 
         // VLM retry job is disabled by default — admin must enable it
         jobConfigRepository.save(new JobConfig("vlm-retry", false));
+    }
+
+    // ---- AI Models ----
+
+    private void seedAiModels() {
+        if (aiModelRepository.count() > 0) return;
+
+        // Real API keys are loaded from backend/ai-keys.csv at startup.
+        // Copy backend/ai-keys.csv.sample to backend/ai-keys.csv and fill in real keys.
+        // Format: provider;model;key
+        // until then, models are seeded with placeholder keys — edit them in the admin UI.
+        record SeedModel(String provider, String model, String url, String placeholderKey, String type) {}
+
+        List<SeedModel> seeds = List.of(
+            new SeedModel("Together AI", "google/gemma-4-31B-it",
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "VLM"),
+            new SeedModel("Together AI", "moonshotai/Kimi-K2.6",
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-2", "VLM"),
+            new SeedModel("Fireworks AI", "accounts/fireworks/models/kimi-k2p6",
+                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-1", "VLM"),
+            new SeedModel("Fireworks AI", "accounts/fireworks/models/qwen3p6-plus",
+                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-2", "VLM"),
+            new SeedModel("HuggingFace", "unsloth/Qwen3.6-27B-MTP-GGUF",
+                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM")
+        );
+
+        List<AiModel> models = seeds.stream().map(s -> new AiModel(
+                s.provider, s.model, s.url,
+                aiKeyLoader.getKey(s.provider, s.model, s.placeholderKey),
+                s.type, true
+        )).toList();
+
+        aiModelRepository.saveAll(models);
     }
 
     // ---- Origins ----
