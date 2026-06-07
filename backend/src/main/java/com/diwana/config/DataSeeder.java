@@ -520,7 +520,9 @@ public class DataSeeder implements CommandLineRunner {
             new SeedModel("Fireworks AI", "accounts/fireworks/models/qwen3p6-plus",
                 "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-2", "VLM", "serverless", null),
             new SeedModel("HuggingFace", "unsloth/Qwen3.6-27B-MTP-GGUF",
-                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 2)
+                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 2),
+            new SeedModel("HuggingFace", "ggml-org/gemma-4-26B-A4B-it-GGUF",
+                "https://gsgwct02nmeh1hku.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 3)
         );
 
         List<AiModel> models = seeds.stream().map(s -> new AiModel(
