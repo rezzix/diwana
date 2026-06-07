@@ -1,8 +1,14 @@
 package com.diwana.declaration;
 
 import com.diwana.common.exception.EntityNotFoundException;
+import com.diwana.documenttype.DocumentTypeRepository;
 import com.diwana.storage.StorageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.Resource;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,10 +19,17 @@ import java.util.List;
 @Service
 public class DeclarationAttachmentService {
 
+    private static final Logger log = LoggerFactory.getLogger(DeclarationAttachmentService.class);
+
     private final DeclarationAttachmentRepository attachmentRepository;
     private final DeclarationService declarationService;
     private final StorageService storageService;
     private final VlmService vlmService;
+    private final DocumentTypeRepository documentTypeRepository;
+
+    @Lazy
+    @Autowired
+    private DeclarationAttachmentService self;
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final List<String> ALLOWED_TYPES = List.of(
@@ -26,11 +39,13 @@ public class DeclarationAttachmentService {
     public DeclarationAttachmentService(DeclarationAttachmentRepository attachmentRepository,
                                          DeclarationService declarationService,
                                          StorageService storageService,
-                                         VlmService vlmService) {
+                                         VlmService vlmService,
+                                         DocumentTypeRepository documentTypeRepository) {
         this.attachmentRepository = attachmentRepository;
         this.declarationService = declarationService;
         this.storageService = storageService;
         this.vlmService = vlmService;
+        this.documentTypeRepository = documentTypeRepository;
     }
 
     @Transactional(readOnly = true)
@@ -144,6 +159,8 @@ public class DeclarationAttachmentService {
         attachment.setVlmModel(null);
         attachment.setVlmUrl(null);
         attachment.setVlmProcessingTimeMs(null);
+        attachment.setVlmStatus(null);
+        attachment.setVlmError(null);
         attachment.setImported(false);
 
         return attachmentRepository.save(attachment);
@@ -166,26 +183,70 @@ public class DeclarationAttachmentService {
             throw new IllegalArgumentException("Attachment does not belong to this declaration");
         }
 
-        // If VLM text already exists, return cached result
-        if (attachment.getVlmText() != null && !attachment.getVlmText().isBlank()) {
-            return new SmartImportResult(attachment.getId(), attachment.getDocType(),
-                    attachment.getFileName(), attachment.isImported(), attachment.getVlmText(),
-                    attachment.getVlmModel(), attachment.getVlmUrl(), attachment.getVlmProcessingTimeMs());
+        // If already completed, return cached result
+        if (attachment.getVlmStatus() == DeclarationAttachment.VlmStatus.COMPLETED
+                && attachment.getVlmText() != null && !attachment.getVlmText().isBlank()) {
+            return toSmartImportResult(attachment);
         }
 
-        // Call VLM to extract invoice data
-        VlmService.VlmResult vlmResult = vlmService.extractInvoiceData(attachmentId);
+        // If already processing, return current status
+        if (attachment.getVlmStatus() == DeclarationAttachment.VlmStatus.PROCESSING) {
+            return toSmartImportResult(attachment);
+        }
 
-        // Save result with metadata
-        attachment.setVlmText(vlmResult.text());
-        attachment.setVlmModel(vlmResult.model());
-        attachment.setVlmUrl(vlmResult.url());
-        attachment.setVlmProcessingTimeMs(vlmResult.processingTimeMs());
-        attachment.setImported(true);
+        // Set processing status and save immediately (returns before VLM completes)
+        attachment.setVlmStatus(DeclarationAttachment.VlmStatus.PROCESSING);
+        attachment.setVlmError(null);
         attachmentRepository.save(attachment);
 
+        // Trigger async VLM processing
+        self.processVlmAsync(attachmentId);
+
+        return toSmartImportResult(attachment);
+    }
+
+    @Async
+    public void processVlmAsync(Long attachmentId) {
+        try {
+            log.info("[VLM] Async processing started for attachmentId={}", attachmentId);
+            VlmService.VlmResult vlmResult = vlmService.extractInvoiceData(attachmentId);
+
+            DeclarationAttachment attachment = attachmentRepository.findById(attachmentId)
+                    .orElseThrow(() -> new EntityNotFoundException("Attachment", attachmentId));
+
+            attachment.setVlmText(vlmResult.text());
+            attachment.setVlmModel(vlmResult.model());
+            attachment.setVlmUrl(vlmResult.url());
+            attachment.setVlmProcessingTimeMs(vlmResult.processingTimeMs());
+            attachment.setVlmStatus(DeclarationAttachment.VlmStatus.COMPLETED);
+            attachment.setImported(true);
+            attachmentRepository.save(attachment);
+            log.info("[VLM] Async processing completed for attachmentId={}", attachmentId);
+        } catch (Exception e) {
+            log.error("[VLM] Async processing failed for attachmentId={}: {}", attachmentId, e.getMessage(), e);
+            try {
+                DeclarationAttachment attachment = attachmentRepository.findById(attachmentId).orElse(null);
+                if (attachment != null) {
+                    attachment.setVlmStatus(DeclarationAttachment.VlmStatus.FAILED);
+                    attachment.setVlmError(e.getMessage());
+                    attachmentRepository.save(attachment);
+                }
+            } catch (Exception inner) {
+                log.error("[VLM] Failed to update error status for attachmentId={}", attachmentId, inner);
+            }
+        }
+    }
+
+    private SmartImportResult toSmartImportResult(DeclarationAttachment attachment) {
         return new SmartImportResult(attachment.getId(), attachment.getDocType(),
-                attachment.getFileName(), attachment.isImported(), vlmResult.text(),
-                vlmResult.model(), vlmResult.url(), vlmResult.processingTimeMs());
+                attachment.getFileName(), attachment.isImported(), attachment.getVlmText(),
+                attachment.getVlmModel(), attachment.getVlmUrl(), attachment.getVlmProcessingTimeMs(),
+                attachment.getVlmStatus(), attachment.getVlmError());
+    }
+
+    public boolean isImportableDocType(String docType) {
+        return documentTypeRepository.findByCode(docType)
+                .map(dt -> dt.getImportOrder() != null)
+                .orElse(false);
     }
 }

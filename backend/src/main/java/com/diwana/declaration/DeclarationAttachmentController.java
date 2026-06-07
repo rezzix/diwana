@@ -27,14 +27,14 @@ public class DeclarationAttachmentController {
         this.authHelper = authHelper;
     }
 
-    public record AttachmentDto(Long id, String docType, String fileName, String contentType, long fileSize, boolean imported, String vlmText, String createdAt) {}
+    public record AttachmentDto(Long id, String docType, String fileName, String contentType, long fileSize, boolean imported, String vlmText, DeclarationAttachment.VlmStatus vlmStatus, String vlmError, String createdAt) {}
 
     @GetMapping
     @PreAuthorize("hasAnyRole('DECLARANT', 'CONTROLLER', 'ADMIN')")
     public ResponseEntity<ApiResponse<List<AttachmentDto>>> list(@PathVariable Long declarationId) {
         List<AttachmentDto> attachments = attachmentService.getByDeclarationId(declarationId).stream()
                 .map(a -> new AttachmentDto(a.getId(), a.getDocType(), a.getFileName(),
-                        a.getContentType(), a.getFileSize(), a.isImported(), a.getVlmText(), a.getCreatedAt().toString()))
+                        a.getContentType(), a.getFileSize(), a.isImported(), a.getVlmText(), a.getVlmStatus(), a.getVlmError(), a.getCreatedAt().toString()))
                 .toList();
         return ResponseEntity.ok(ApiResponse.of(attachments));
     }
@@ -51,10 +51,18 @@ public class DeclarationAttachmentController {
             return ResponseEntity.badRequest().body(ApiResponse.of(null));
         }
         DeclarationAttachment attachment = attachmentService.upload(declarationId, file, docType, userId);
+
+        // Auto-trigger VLM import for importable document types (runs in its own transaction)
+        if (attachmentService.isImportableDocType(docType)) {
+            attachmentService.smartImport(declarationId, attachment.getId());
+            // Re-fetch so the response shows PROCESSING status
+            attachment = attachmentService.getById(attachment.getId());
+        }
+
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
-                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getCreatedAt().toString())
+                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getVlmStatus(), attachment.getVlmError(), attachment.getCreatedAt().toString())
         ));
     }
 
@@ -78,7 +86,7 @@ public class DeclarationAttachmentController {
         return ResponseEntity.ok(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
-                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getCreatedAt().toString())
+                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getVlmStatus(), attachment.getVlmError(), attachment.getCreatedAt().toString())
         ));
     }
 
@@ -89,7 +97,7 @@ public class DeclarationAttachmentController {
         return ResponseEntity.ok(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
-                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getCreatedAt().toString())
+                        attachment.getFileSize(), attachment.isImported(), attachment.getVlmText(), attachment.getVlmStatus(), attachment.getVlmError(), attachment.getCreatedAt().toString())
         ));
     }
 

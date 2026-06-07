@@ -8,6 +8,8 @@ export interface AttachmentDto {
   fileSize: number;
   imported: boolean;
   vlmText: string | null;
+  vlmStatus: 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
+  vlmError: string | null;
   createdAt: string;
 }
 
@@ -20,6 +22,8 @@ export interface SmartImportResult {
   vlmModel: string | null;
   vlmUrl: string | null;
   vlmProcessingTimeMs: number | null;
+  vlmStatus: 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  vlmError: string | null;
 }
 
 export function getAttachments(declarationId: number, signal?: AbortSignal): Promise<AttachmentDto[]> {
