@@ -34,6 +34,9 @@ Thumbs.db
 # Claude Code
 .claude/
 
+# AI model API keys (local, not committed)
+backend/ai-keys.csv
+
 # H2 database files
 *.h2.db
 *.mv.db
