@@ -3,7 +3,6 @@ package com.diwana.declaration;
 import com.diwana.aimodel.AiModel;
 import com.diwana.aimodel.AiModelRepository;
 import com.diwana.common.exception.VlmException;
-import com.diwana.config.OpenAiProperties;
 import com.diwana.storage.StorageService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,7 +37,6 @@ public class VlmService {
 
     private static final Logger log = LoggerFactory.getLogger(VlmService.class);
 
-    private final OpenAiProperties openAiProperties;
     private final StorageService storageService;
     private final DeclarationAttachmentRepository attachmentRepository;
     private final AiModelRepository aiModelRepository;
@@ -90,12 +88,10 @@ public class VlmService {
             (each with HS code if visible, description, quantity, unit, unit price, total value, currency, country of origin).
             """;
 
-    public VlmService(OpenAiProperties openAiProperties,
-                      StorageService storageService,
+    public VlmService(StorageService storageService,
                       DeclarationAttachmentRepository attachmentRepository,
                       AiModelRepository aiModelRepository,
                       ObjectMapper objectMapper) {
-        this.openAiProperties = openAiProperties;
         this.storageService = storageService;
         this.attachmentRepository = attachmentRepository;
         this.aiModelRepository = aiModelRepository;
@@ -139,15 +135,18 @@ public class VlmService {
                 .findByActiveTrueAndTypeAndCallOrderIsNotNullOrderByCallOrderAsc("VLM");
 
         if (models.isEmpty()) {
-            // Fallback to OpenAiProperties config
-            log.warn("[VLM] No AiModel entries configured with callOrder. Falling back to OpenAiProperties.");
-            return callWithConfig(images);
+            // No models with callOrder — try all active VLM models
+            models = aiModelRepository.findAll().stream()
+                    .filter(m -> "VLM".equals(m.getType()) && m.isActive())
+                    .collect(java.util.stream.Collectors.toList());
+            log.warn("[VLM] No VLM models with callOrder found. Trying all {} active VLM model(s).", models.size());
         }
 
         List<Throwable> errors = new ArrayList<>();
         for (AiModel model : models) {
             try {
-                String url = model.getUrl().endsWith("/") ? model.getUrl() + "chat/completions" : model.getUrl() + "/chat/completions";
+                String baseUrl = model.getUrl().endsWith("/") ? model.getUrl() : model.getUrl() + "/";
+                String url = baseUrl + "chat/completions";
                 log.info("[VLM] Trying model={} at provider={} (callOrder={})...", model.getModel(), model.getProvider(), model.getCallOrder());
                 long start = System.currentTimeMillis();
                 String result = callVlmApi(images, url, model.getModel(), model.getApiKey());
@@ -166,29 +165,10 @@ public class VlmService {
         throw last;
     }
 
-    private VlmResult callWithConfig(List<ImageData> images) {
-        String url = openAiProperties.baseUrl() + "/chat/completions";
-        String model = openAiProperties.model();
-        String apiKey = openAiProperties.apiKey();
-
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new VlmException("VLM API key is not configured. Set OPENAI_API_KEY environment variable.");
-        }
-
-        log.info("[VLM] Calling VLM API at {} with model {}...", url, model);
-        long start = System.currentTimeMillis();
-        String result = callVlmApi(images, url, model, apiKey);
-        long elapsed = System.currentTimeMillis() - start;
-        log.info("[VLM] VLM API call completed in {}ms, response length={}", elapsed, result.length());
-
-        return new VlmResult(result, model, url, elapsed);
-    }
-
     private List<ImageData> convertToImages(byte[] fileBytes, String contentType) throws IOException {
         List<ImageData> images = new ArrayList<>();
 
         if (contentType != null && contentType.equals("application/pdf")) {
-            // Render PDF pages to PNG
             try (PDDocument document = Loader.loadPDF(fileBytes)) {
                 PDFRenderer renderer = new PDFRenderer(document);
                 int pages = Math.min(document.getNumberOfPages(), MAX_PAGES);
@@ -202,13 +182,10 @@ public class VlmService {
                 log.info("[VLM] Rendered {} PDF page(s) to images", images.size());
             }
         } else if (contentType != null && contentType.startsWith("image/")) {
-            // For PNG/JPEG/GIF: send original bytes directly (no conversion needed)
-            // For TIFF/WebP: convert to PNG via ImageIO
             if (contentType.equals("image/png") || contentType.equals("image/jpeg") || contentType.equals("image/gif")) {
                 log.info("[VLM] Sending image as-is ({}), {} bytes", contentType, fileBytes.length);
                 images.add(new ImageData(contentType, Base64.getEncoder().encodeToString(fileBytes)));
             } else {
-                // TIFF, WebP, or other formats: convert to PNG
                 log.info("[VLM] Converting {} image to PNG, {} bytes", contentType, fileBytes.length);
                 BufferedImage image = ImageIO.read(new ByteArrayInputStream(fileBytes));
                 if (image == null) {
@@ -228,7 +205,6 @@ public class VlmService {
     private String callVlmApi(List<ImageData> images, String url, String model, String apiKey) {
         try {
             log.info("[VLM] Building request payload with {} image(s), model={}...", images.size(), model);
-            // Build content array: text prompt + images
             List<Map<String, Object>> content = new ArrayList<>();
             content.add(Map.of("type", "text", "text", USER_PROMPT));
             for (ImageData img : images) {
@@ -259,7 +235,6 @@ public class VlmService {
                     url, HttpMethod.POST, entity, String.class);
             log.info("[VLM] Received response: status={}, body length={}", response.getStatusCode(), response.getBody() != null ? response.getBody().length() : 0);
 
-            // Parse response
             JsonNode responseJson = objectMapper.readTree(response.getBody());
             log.info("[VLM] Response model: {}, usage: {}",
                 responseJson.path("model").asText("?"),
@@ -268,7 +243,6 @@ public class VlmService {
             JsonNode messageNode = responseJson.path("choices").get(0).path("message");
             String content1 = messageNode.path("content").asText();
 
-            // If content is empty, check reasoning field (some models put the answer there)
             if (content1 == null || content1.isBlank()) {
                 String reasoning = messageNode.path("reasoning").asText(null);
                 if (reasoning != null && !reasoning.isBlank()) {
@@ -277,10 +251,8 @@ public class VlmService {
                 }
             }
 
-            // Strip <think>...</think> tags if present
             content1 = content1.replaceAll("(?s)<think>.*?</think>", "").trim();
 
-            // Strip markdown code fences if present
             content1 = content1.trim();
             if (content1.startsWith("```json")) {
                 content1 = content1.substring(7);
