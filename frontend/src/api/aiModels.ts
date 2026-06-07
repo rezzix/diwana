@@ -8,6 +8,8 @@ export interface AiModelDto {
   apiKey: string;
   type: string;
   active: boolean;
+  deployment: string | null;
+  callOrder: number | null;
 }
 
 export interface CreateAiModelRequest {
@@ -17,6 +19,8 @@ export interface CreateAiModelRequest {
   apiKey: string;
   type: string;
   active: boolean;
+  deployment: string | null;
+  callOrder: number | null;
 }
 
 export interface UpdateAiModelRequest {
@@ -26,6 +30,8 @@ export interface UpdateAiModelRequest {
   apiKey: string;
   type: string;
   active: boolean;
+  deployment: string | null;
+  callOrder: number | null;
 }
 
 export function listAiModels(): Promise<AiModelDto[]> {

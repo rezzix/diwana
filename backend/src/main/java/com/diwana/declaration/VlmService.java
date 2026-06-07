@@ -1,5 +1,7 @@
 package com.diwana.declaration;
 
+import com.diwana.aimodel.AiModel;
+import com.diwana.aimodel.AiModelRepository;
 import com.diwana.common.exception.VlmException;
 import com.diwana.config.OpenAiProperties;
 import com.diwana.storage.StorageService;
@@ -39,6 +41,7 @@ public class VlmService {
     private final OpenAiProperties openAiProperties;
     private final StorageService storageService;
     private final DeclarationAttachmentRepository attachmentRepository;
+    private final AiModelRepository aiModelRepository;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
 
@@ -90,10 +93,12 @@ public class VlmService {
     public VlmService(OpenAiProperties openAiProperties,
                       StorageService storageService,
                       DeclarationAttachmentRepository attachmentRepository,
+                      AiModelRepository aiModelRepository,
                       ObjectMapper objectMapper) {
         this.openAiProperties = openAiProperties;
         this.storageService = storageService;
         this.attachmentRepository = attachmentRepository;
+        this.aiModelRepository = aiModelRepository;
         this.objectMapper = objectMapper;
         RestTemplate template = new RestTemplate();
         template.setRequestFactory(new org.springframework.http.client.SimpleClientHttpRequestFactory() {{
@@ -106,15 +111,11 @@ public class VlmService {
     public VlmResult extractInvoiceData(Long attachmentId) {
         log.info("[VLM] Starting invoice extraction for attachmentId={}", attachmentId);
 
-        if (openAiProperties.apiKey() == null || openAiProperties.apiKey().isBlank()) {
-            throw new VlmException("VLM API key is not configured. Set OPENAI_API_KEY environment variable.");
-        }
-
         DeclarationAttachment attachment = attachmentRepository.findById(attachmentId)
                 .orElseThrow(() -> new VlmException("Attachment not found: " + attachmentId));
         log.info("[VLM] Loaded attachment: id={}, fileName={}, contentType={}", attachment.getId(), attachment.getFileName(), attachment.getContentType());
 
-        // Load file bytes
+        // Load file bytes and convert to images (shared across all model attempts)
         List<ImageData> images;
         try {
             Resource resource = storageService.load(attachment.getFilePath());
@@ -133,11 +134,50 @@ public class VlmService {
             throw new VlmException("Could not extract any images from the document");
         }
 
+        // Try active VLM models by callOrder priority, falling back to next on error
+        List<AiModel> models = aiModelRepository
+                .findByActiveTrueAndTypeAndCallOrderIsNotNullOrderByCallOrderAsc("VLM");
+
+        if (models.isEmpty()) {
+            // Fallback to OpenAiProperties config
+            log.warn("[VLM] No AiModel entries configured with callOrder. Falling back to OpenAiProperties.");
+            return callWithConfig(images);
+        }
+
+        List<Throwable> errors = new ArrayList<>();
+        for (AiModel model : models) {
+            try {
+                String url = model.getUrl().endsWith("/") ? model.getUrl() + "chat/completions" : model.getUrl() + "/chat/completions";
+                log.info("[VLM] Trying model={} at provider={} (callOrder={})...", model.getModel(), model.getProvider(), model.getCallOrder());
+                long start = System.currentTimeMillis();
+                String result = callVlmApi(images, url, model.getModel(), model.getApiKey());
+                long elapsed = System.currentTimeMillis() - start;
+                log.info("[VLM] Model {} succeeded in {}ms", model.getModel(), elapsed);
+                return new VlmResult(result, model.getModel(), url, elapsed);
+            } catch (Exception e) {
+                log.warn("[VLM] Model {} failed: {}", model.getModel(), e.getMessage());
+                errors.add(e);
+            }
+        }
+
+        // All models failed
+        VlmException last = new VlmException("All VLM models failed. Last error: " + errors.get(errors.size() - 1).getMessage());
+        errors.forEach(e -> last.addSuppressed(e instanceof Exception ex ? ex : new RuntimeException(e)));
+        throw last;
+    }
+
+    private VlmResult callWithConfig(List<ImageData> images) {
         String url = openAiProperties.baseUrl() + "/chat/completions";
         String model = openAiProperties.model();
+        String apiKey = openAiProperties.apiKey();
+
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new VlmException("VLM API key is not configured. Set OPENAI_API_KEY environment variable.");
+        }
+
         log.info("[VLM] Calling VLM API at {} with model {}...", url, model);
         long start = System.currentTimeMillis();
-        String result = callVlmApi(images, url, model);
+        String result = callVlmApi(images, url, model, apiKey);
         long elapsed = System.currentTimeMillis() - start;
         log.info("[VLM] VLM API call completed in {}ms, response length={}", elapsed, result.length());
 
@@ -185,7 +225,7 @@ public class VlmService {
         return images;
     }
 
-    private String callVlmApi(List<ImageData> images, String url, String model) {
+    private String callVlmApi(List<ImageData> images, String url, String model, String apiKey) {
         try {
             log.info("[VLM] Building request payload with {} image(s), model={}...", images.size(), model);
             // Build content array: text prompt + images
@@ -209,7 +249,7 @@ public class VlmService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(openAiProperties.apiKey());
+            headers.setBearerAuth(apiKey);
 
             String requestBody = objectMapper.writeValueAsString(request);
             log.info("[VLM] Request body size: {} bytes", requestBody.length());

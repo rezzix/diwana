@@ -507,25 +507,26 @@ public class DataSeeder implements CommandLineRunner {
         // Copy backend/ai-keys.csv.sample to backend/ai-keys.csv and fill in real keys.
         // Format: provider;model;key
         // until then, models are seeded with placeholder keys — edit them in the admin UI.
-        record SeedModel(String provider, String model, String url, String placeholderKey, String type) {}
+        record SeedModel(String provider, String model, String url, String placeholderKey, String type,
+                         String deployment, Integer callOrder) {}
 
         List<SeedModel> seeds = List.of(
             new SeedModel("Together AI", "google/gemma-4-31B-it",
-                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "VLM"),
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "VLM", "serverless", 1),
             new SeedModel("Together AI", "moonshotai/Kimi-K2.6",
-                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-2", "VLM"),
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-2", "VLM", "serverless", 2),
             new SeedModel("Fireworks AI", "accounts/fireworks/models/kimi-k2p6",
-                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-1", "VLM"),
+                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-1", "VLM", "serverless", 3),
             new SeedModel("Fireworks AI", "accounts/fireworks/models/qwen3p6-plus",
-                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-2", "VLM"),
+                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-2", "VLM", "serverless", 4),
             new SeedModel("HuggingFace", "unsloth/Qwen3.6-27B-MTP-GGUF",
-                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM")
+                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 5)
         );
 
         List<AiModel> models = seeds.stream().map(s -> new AiModel(
                 s.provider, s.model, s.url,
                 aiKeyLoader.getKey(s.provider, s.model, s.placeholderKey),
-                s.type, true
+                s.type, true, s.deployment, s.callOrder
         )).toList();
 
         aiModelRepository.saveAll(models);

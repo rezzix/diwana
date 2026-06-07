@@ -37,7 +37,8 @@ public class AiModelController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AiModelDto>> create(@RequestBody AiModelDto.CreateRequest request) {
         AiModel model = new AiModel(request.provider(), request.model(), request.url(),
-                request.apiKey(), request.type(), request.active());
+                request.apiKey(), request.type(), request.active(),
+                request.deployment(), request.callOrder());
         model = repository.save(model);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(AiModelDto.from(model)));
     }
@@ -54,6 +55,8 @@ public class AiModelController {
         model.setApiKey(request.apiKey());
         model.setType(request.type());
         model.setActive(request.active());
+        model.setDeployment(request.deployment());
+        model.setCallOrder(request.callOrder());
         model = repository.save(model);
         return ResponseEntity.ok(ApiResponse.of(AiModelDto.from(model)));
     }

@@ -28,9 +28,16 @@ public class AiModel {
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column(name = "deployment", length = 20)
+    private String deployment; // local, remote, serverless, dedicated
+
+    @Column(name = "call_order")
+    private Integer callOrder; // priority order for fallback; null = do not auto-use
+
     public AiModel() {}
 
-    public AiModel(String provider, String model, String url, String apiKey, String type, boolean active) {
+    public AiModel(String provider, String model, String url, String apiKey, String type, boolean active,
+                   String deployment, Integer callOrder) {
         this.provider = provider;
         this.model = model;
         this.url = url;
@@ -53,4 +60,8 @@ public class AiModel {
     public void setType(String type) { this.type = type; }
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
+    public String getDeployment() { return deployment; }
+    public void setDeployment(String deployment) { this.deployment = deployment; }
+    public Integer getCallOrder() { return callOrder; }
+    public void setCallOrder(Integer callOrder) { this.callOrder = callOrder; }
 }
