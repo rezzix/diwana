@@ -19,11 +19,12 @@ const roleBadge: Record<string, string> = {
   CONTROLLER: 'bg-green-100 text-green-700',
 };
 
-export default function AdminPage({ defaultTab }: { defaultTab?: string }) {
+export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; tabs?: readonly string[] }) {
   // Tab navigation
-  const validTabs = ['users', 'document-types', 'tariff-rates', 'jobs', 'ai-models'] as const;
-  type Tab = typeof validTabs[number];
-  const initialTab = defaultTab && validTabs.includes(defaultTab as Tab) ? defaultTab as Tab : 'users';
+  const allTabs = ['users', 'document-types', 'tariff-rates', 'jobs', 'ai-models'] as const;
+  const allowedTabs = tabs ? allTabs.filter((t) => tabs.includes(t)) : [...allTabs];
+  type Tab = typeof allTabs[number];
+  const initialTab = (defaultTab && allowedTabs.includes(defaultTab as Tab)) ? defaultTab as Tab : allowedTabs[0] || 'users';
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   // Users state
@@ -402,46 +403,16 @@ export default function AdminPage({ defaultTab }: { defaultTab?: string }) {
 
         {/* Tab navigation */}
         <div className="flex border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === 'users' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Users
-          </button>
-          <button
-            onClick={() => setActiveTab('document-types')}
-            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === 'document-types' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Document Types
-          </button>
-          <button
-            onClick={() => setActiveTab('tariff-rates')}
-            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === 'tariff-rates' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Tariff Rates
-          </button>
-          <button
-            onClick={() => setActiveTab('jobs')}
-            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === 'jobs' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Jobs
-          </button>
-          <button
-            onClick={() => setActiveTab('ai-models')}
-            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === 'ai-models' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            AI Models
-          </button>
+          {allowedTabs.map((tab) => (
+            <button key={tab}
+              onClick={() => setActiveTab(tab as Tab)}
+              className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors capitalize ${
+                activeTab === tab ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab === 'ai-models' ? 'AI Models' : tab.replace('-', ' ')}
+            </button>
+          ))}
         </div>
 
         {/* Users tab */}

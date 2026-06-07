@@ -264,7 +264,7 @@ function AppRoutes() {
         element={
           <AuthGuard>
             <AdminGuard>
-              <AdminPage />
+              <AdminPage tabs={['users', 'jobs', 'ai-models']} />
             </AdminGuard>
           </AuthGuard>
         }
