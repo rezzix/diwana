@@ -10,6 +10,7 @@ export interface AttachmentDto {
   vlmText: string | null;
   vlmStatus: 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
   vlmError: string | null;
+  vlmDate: string | null;
   createdAt: string;
 }
 
@@ -24,6 +25,7 @@ export interface SmartImportResult {
   vlmProcessingTimeMs: number | null;
   vlmStatus: 'PROCESSING' | 'COMPLETED' | 'FAILED';
   vlmError: string | null;
+  vlmDate: string | null;
 }
 
 export function getAttachments(declarationId: number, signal?: AbortSignal): Promise<AttachmentDto[]> {

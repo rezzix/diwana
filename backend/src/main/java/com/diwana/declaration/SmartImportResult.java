@@ -10,5 +10,6 @@ public record SmartImportResult(
         String vlmUrl,
         Long vlmProcessingTimeMs,
         DeclarationAttachment.VlmStatus vlmStatus,
-        String vlmError
+        String vlmError,
+        String vlmDate
 ) {}
