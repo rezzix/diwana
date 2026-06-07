@@ -8,6 +8,8 @@ import com.diwana.documenttype.DocumentType;
 import com.diwana.documenttype.DocumentTypeRepository;
 import com.diwana.hscode.HsCode;
 import com.diwana.hscode.HsCodeRepository;
+import com.diwana.job.JobConfig;
+import com.diwana.job.JobConfigRepository;
 import com.diwana.origin.Origin;
 import com.diwana.origin.OriginRepository;
 import com.diwana.tariff.TariffRate;
@@ -38,6 +40,7 @@ public class DataSeeder implements CommandLineRunner {
     private final CustomsOfficeRepository customsOfficeRepository;
     private final DocumentTypeRepository documentTypeRepository;
     private final HsCodeRepository hsCodeRepository;
+    private final JobConfigRepository jobConfigRepository;
 
     public DataSeeder(PasswordEncoder passwordEncoder,
                       UserRepository userRepository,
@@ -46,7 +49,8 @@ public class DataSeeder implements CommandLineRunner {
                       OriginRepository originRepository,
                       CustomsOfficeRepository customsOfficeRepository,
                       DocumentTypeRepository documentTypeRepository,
-                      HsCodeRepository hsCodeRepository) {
+                      HsCodeRepository hsCodeRepository,
+                      JobConfigRepository jobConfigRepository) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.companyRepository = companyRepository;
@@ -55,6 +59,7 @@ public class DataSeeder implements CommandLineRunner {
         this.customsOfficeRepository = customsOfficeRepository;
         this.documentTypeRepository = documentTypeRepository;
         this.hsCodeRepository = hsCodeRepository;
+        this.jobConfigRepository = jobConfigRepository;
     }
 
     @Override
@@ -69,6 +74,7 @@ public class DataSeeder implements CommandLineRunner {
         seedDocumentTypes();
         seedHsCodes();
         seedTariffRates();
+        seedJobConfigs();
         seedUsers();
     }
 
@@ -472,6 +478,15 @@ public class DataSeeder implements CommandLineRunner {
         rate.setOrigin(origin);
         rate.setActive(true);
         return rate;
+    }
+
+    // ---- Job Configs ----
+
+    private void seedJobConfigs() {
+        if (jobConfigRepository.count() > 0) return;
+
+        // VLM retry job is disabled by default — admin must enable it
+        jobConfigRepository.save(new JobConfig("vlm-retry", false));
     }
 
     // ---- Origins ----

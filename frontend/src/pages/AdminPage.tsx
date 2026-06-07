@@ -8,6 +8,7 @@ import { getAllDocumentTypes, createDocumentType, updateDocumentType, deleteDocu
 import { getAllTariffRates, createTariffRate, updateTariffRate, deactivateTariffRate } from '@/api/tariffRates';
 import type { TariffRateDto } from '@/api/declarations';
 import { getOrigins, type OriginDto } from '@/api/origins';
+import { listJobs, toggleJob, type JobConfigDto } from '@/api/jobs';
 import HsCodeAutocomplete from '@/components/HsCodeAutocomplete';
 import type { UserDto, PaginationInfo } from '@/types';
 
@@ -19,7 +20,7 @@ const roleBadge: Record<string, string> = {
 
 export default function AdminPage() {
   // Tab navigation
-  const [activeTab, setActiveTab] = useState<'users' | 'document-types' | 'tariff-rates'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'document-types' | 'tariff-rates' | 'jobs'>('users');
 
   // Users state
   const [users, setUsers] = useState<UserDto[]>([]);
@@ -66,6 +67,11 @@ export default function AdminPage() {
   const [editingTariffRate, setEditingTariffRate] = useState<TariffRateDto | null>(null);
   const [editTariffRateForm, setEditTariffRateForm] = useState({ originCode: '', hsCode: '', description: '', dutyRate: '', vatRate: '', unit: '', active: true });
 
+  // Jobs state
+  const [jobs, setJobs] = useState<JobConfigDto[]>([]);
+  const [jobsLoading, setJobsLoading] = useState(true);
+  const [togglingJobId, setTogglingJobId] = useState<number | null>(null);
+
   const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
@@ -109,6 +115,18 @@ export default function AdminPage() {
     }
   };
 
+  const fetchJobs = async () => {
+    setJobsLoading(true);
+    try {
+      const data = await listJobs();
+      setJobs(data);
+    } catch {
+      setError('Failed to load jobs');
+    } finally {
+      setJobsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const controller = new AbortController();
     fetchUsers(controller.signal);
@@ -146,6 +164,12 @@ export default function AdminPage() {
   useEffect(() => {
     if (activeTab === 'tariff-rates') {
       fetchTariffRates();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'jobs') {
+      fetchJobs();
     }
   }, [activeTab]);
 
@@ -370,6 +394,14 @@ export default function AdminPage() {
             }`}
           >
             Tariff Rates
+          </button>
+          <button
+            onClick={() => setActiveTab('jobs')}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === 'jobs' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Jobs
           </button>
         </div>
 
@@ -925,6 +957,75 @@ export default function AdminPage() {
                             Deactivate
                           </button>
                         )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {/* Jobs tab */}
+        {activeTab === 'jobs' && (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-500">Manage scheduled jobs. Disabled jobs will not run until re-enabled.</p>
+            </div>
+
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Job Name</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-700">Last Run</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobsLoading ? (
+                    <tr><td colSpan={4} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                  ) : jobs.length === 0 ? (
+                    <tr><td colSpan={4} className="text-center py-8 text-gray-400">No jobs found</td></tr>
+                  ) : jobs.map((job) => (
+                    <tr key={job.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-gray-900 font-mono text-xs">{job.name}</span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                          job.enabled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          <span className={`inline-block w-1.5 h-1.5 rounded-full ${job.enabled ? 'bg-green-500' : 'bg-gray-400'}`} />
+                          {job.enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">
+                        {job.lastRunAt ? new Date(job.lastRunAt).toLocaleString() : 'Never'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={async () => {
+                            setTogglingJobId(job.id);
+                            try {
+                              await toggleJob(job.id);
+                              await fetchJobs();
+                            } catch {
+                              setError('Failed to toggle job');
+                            } finally {
+                              setTogglingJobId(null);
+                            }
+                          }}
+                          disabled={togglingJobId === job.id}
+                          className={`text-xs px-2 py-1 rounded transition-colors ${
+                            job.enabled
+                              ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                              : 'bg-green-50 text-green-600 hover:bg-green-100'
+                          } disabled:opacity-50`}
+                        >
+                          {togglingJobId === job.id ? 'Toggling...' : job.enabled ? 'Disable' : 'Enable'}
+                        </button>
                       </td>
                     </tr>
                   ))}
