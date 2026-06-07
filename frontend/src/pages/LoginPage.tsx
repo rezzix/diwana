@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
-import { getDevUsers } from '@/api/auth';
+import { getDevUsers, getAuthConfig, type AuthConfig } from '@/api/auth';
 import type { DevUserDto } from '@/types';
 import Spinner from '@/components/common/Spinner';
 
@@ -33,6 +33,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [devUsers, setDevUsers] = useState<DevUserDto[]>([]);
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
   const [showQuickLogin, setShowQuickLogin] = useState(false);
   const { login, error, clearError, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -50,26 +51,31 @@ export default function LoginPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    getAuthConfig(controller.signal).then((config) => {
+      if (!controller.signal.aborted) setAuthConfig(config);
+    }).catch(() => {});
     getDevUsers(controller.signal)
       .then((data) => {
         if (!controller.signal.aborted) setDevUsers(data);
       })
-      .catch((err) => {
-        if (axios.isCancel(err)) return;
-      });
+      .catch(() => {});
     return () => controller.abort();
   }, []);
 
   const handleSelectUser = async (u: DevUserDto) => {
     setUsername(u.username);
-    setPassword('password123');
     clearError();
-    try {
-      await login(u.username, 'password123');
-      safeNavigate(from);
-    } catch {
-      // login will set error state
+    if (authConfig?.relaxedAuth) {
+      // Dev mode: auto-login with known password
+      setPassword('ADII4321');
+      try {
+        await login(u.username, 'ADII4321');
+        safeNavigate(from);
+      } catch {
+        // login will set error state
+      }
     }
+    // Demo mode: just fill username, user must type password
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -82,7 +88,7 @@ export default function LoginPage() {
     }
   };
 
-  const relaxedAuth = true;
+  const relaxedAuth = authConfig?.relaxedAuth ?? false;
 
   return (
     <div className="min-h-screen bg-surface flex flex-col">
@@ -92,10 +98,16 @@ export default function LoginPage() {
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-gray-900 tracking-tight">Diwana</span>
           </div>
-          {relaxedAuth && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-              Dev Mode
+          {authConfig && (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
+              relaxedAuth
+                ? 'bg-amber-100 text-amber-800 border-amber-200'
+                : 'bg-blue-100 text-blue-800 border-blue-200'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                relaxedAuth ? 'bg-amber-500' : 'bg-blue-500'
+              }`} />
+              {authConfig.mode === 'demo' ? 'Demo Mode' : authConfig.mode === 'dev' ? 'Dev Mode' : ''}
             </span>
           )}
         </div>
@@ -237,11 +249,16 @@ export default function LoginPage() {
                   required
                   autoComplete="current-password"
                   className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-shadow"
-                  placeholder="Any password works in dev mode"
+                  placeholder={relaxedAuth ? "Any password works in dev mode" : "Enter your password"}
                 />
                 {relaxedAuth && (
                   <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
                     Dev mode active — any password is accepted for existing users.
+                  </p>
+                )}
+                {authConfig?.mode === 'demo' && (
+                  <p className="mt-1.5 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                    Demo mode — password for all accounts: <strong>ADII4321</strong>
                   </p>
                 )}
               </div>

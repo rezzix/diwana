@@ -16,3 +16,12 @@ export async function me(signal?: AbortSignal): Promise<UserDto> {
 export async function getDevUsers(signal?: AbortSignal): Promise<DevUserDto[]> {
   return apiGet<DevUserDto[]>('/auth/dev-users', undefined, signal);
 }
+
+export interface AuthConfig {
+  relaxedAuth: boolean;
+  mode: string;
+}
+
+export async function getAuthConfig(signal?: AbortSignal): Promise<AuthConfig> {
+  return apiGet<AuthConfig>('/auth/config', undefined, signal);
+}

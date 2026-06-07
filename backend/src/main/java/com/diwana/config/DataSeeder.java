@@ -638,7 +638,7 @@ public class DataSeeder implements CommandLineRunner {
         user.setRole(role);
         user.setCompany(company);
         user.setCustomsOffice(customsOffice);
-        user.setPasswordHash(passwordEncoder.encode("password123"));
+        user.setPasswordHash(passwordEncoder.encode("ADII4321"));
         user.setActive(true);
         return user;
     }
