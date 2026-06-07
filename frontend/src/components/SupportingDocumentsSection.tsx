@@ -429,6 +429,7 @@ interface SupportingDocumentsSectionProps {
   uploading: boolean;
   setUploading: (uploading: boolean) => void;
   canEdit: boolean;
+  hideImport?: boolean;
   onUpload: (formData: FormData) => Promise<void>;
   onDelete: (attachmentId: number) => Promise<void>;
   onReplace: (attachmentId: number, file: File) => Promise<void>;
@@ -457,6 +458,7 @@ export default function SupportingDocumentsSection({
   onAttachmentsChanged,
   onAddLines,
   origins,
+  hideImport,
   error,
   setError,
 }: SupportingDocumentsSectionProps) {
@@ -465,6 +467,7 @@ export default function SupportingDocumentsSection({
 
   // Poll for VLM status updates every 5 seconds when any attachment is PROCESSING
   useEffect(() => {
+    if (hideImport) return;
     const hasProcessing = attachments.some((a) => a.vlmStatus === 'PROCESSING');
     if (!hasProcessing || !declarationId) return;
     const interval = setInterval(() => {
@@ -662,7 +665,7 @@ export default function SupportingDocumentsSection({
                             className="text-primary-600 hover:underline font-medium">
                             {row.attachment.fileName}
                           </button>
-                          {row.attachment.vlmStatus === 'COMPLETED' && (
+                          {!hideImport && row.attachment.vlmStatus === 'COMPLETED' && (
                             <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-green-100 text-green-700">Imported</span>
                           )}
                         </div>
@@ -675,6 +678,7 @@ export default function SupportingDocumentsSection({
                           View
                         </button>
                         {(() => {
+                          if (hideImport) return null;
                           const status = row.attachment!.vlmStatus;
                           const isImportable = row.docType.importOrder != null;
                           if (!isImportable) return null;

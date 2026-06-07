@@ -257,6 +257,7 @@ export default function CreateDeclarationPage() {
               uploading={uploading}
               setUploading={setUploading}
               canEdit={true}
+              hideImport={true}
               onUpload={handleUpload}
               onDelete={handleDeleteAtt}
               onReplace={handleReplaceAtt}
