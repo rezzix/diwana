@@ -91,9 +91,22 @@ The frontend starts on **`http://localhost:5173`** and proxies API requests to t
 
 ---
 
-## Quick login (dev mode)
+## Modes
 
-The data seeder creates the following demo accounts (password: `password123` for all):
+| Mode | Config | Login behavior |
+|------|--------|---------------|
+| **dev** | `diwana.mode=dev` (default) | Quick login bypasses password — click any user to auto-login |
+| **demo** | `diwana.mode=demo` | Quick login fills only the username — you must type the password |
+| **prod** | `diwana.mode=prod` | No quick login, standard username/password form |
+
+Set the mode by editing `application.yml` or via environment variable:
+```bash
+diwana.mode=demo ./gradlew :backend:bootRun
+```
+
+## Quick login (dev / demo mode)
+
+The data seeder creates the following demo accounts (password: `ADII4321` for all):
 
 | Username | Role | Company / Office |
 |----------|------|-----------------|
@@ -107,7 +120,8 @@ The data seeder creates the following demo accounts (password: `password123` for
 | `hicham` | CONTROLLER | Port de Casablanca |
 | `latifa` | CONTROLLER | Aéroport de Casablanca |
 
-In dev mode, use the **Quick Login** dropdown on the login page to bypass manual login.
+In **dev mode**, use the **Quick Login** dropdown on the login page to bypass manual login.
+In **demo mode**, quick login fills the username — you still need to type `ADII4321` as the password.
 
 ---
 

@@ -54,12 +54,12 @@ public class AuthController {
         Authentication authentication;
 
         if (relaxedAuth) {
-            // DevMode: authenticate by username only, skip password check
+            // Dev mode: bypass password check — authenticate by username only
             CustomUserDetails userDetails = (CustomUserDetails) userDetailsService.loadUserByUsername(request.username());
             authentication = new UsernamePasswordAuthenticationToken(
                     userDetails, userDetails.getPassword(), userDetails.getAuthorities());
         } else {
-            // Production: validate credentials via AuthenticationManager
+            // Demo and production: validate credentials normally
             authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.username(), request.password())
             );
@@ -84,7 +84,7 @@ public class AuthController {
 
     @GetMapping("/dev-users")
     public ResponseEntity<ApiResponse<List<DevUserDto>>> devUsers() {
-        if (!"dev".equals(mode)) {
+        if (!"dev".equals(mode) && !"demo".equals(mode)) {
             return ResponseEntity.ok(ApiResponse.of(List.of()));
         }
         List<DevUserDto> users = userRepository.findAll().stream()
@@ -96,6 +96,14 @@ public class AuthController {
     }
 
     public record DevUserDto(String username, String displayName, String role, String company, String customsOffice) {}
+
+    public record AuthConfig(boolean relaxedAuth, String mode) {}
+
+    @GetMapping("/config")
+    public ResponseEntity<ApiResponse<AuthConfig>> config() {
+        boolean relaxedAuth = "dev".equals(mode);
+        return ResponseEntity.ok(ApiResponse.of(new AuthConfig(relaxedAuth, mode)));
+    }
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<String>> logout(HttpServletRequest httpRequest) {
