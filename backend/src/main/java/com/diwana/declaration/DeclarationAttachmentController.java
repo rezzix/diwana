@@ -83,6 +83,13 @@ public class DeclarationAttachmentController {
             @AuthenticationPrincipal UserDetails currentUser) {
         Long userId = authHelper.getCurrentUserId(currentUser);
         DeclarationAttachment attachment = attachmentService.replace(declarationId, attachmentId, file, docType, userId);
+
+        // Auto-trigger VLM import for importable document types (runs in its own transaction)
+        if (attachmentService.isImportableDocType(attachment.getDocType())) {
+            attachmentService.smartImport(declarationId, attachment.getId());
+            attachment = attachmentService.getById(attachment.getId());
+        }
+
         return ResponseEntity.ok(ApiResponse.of(
                 new AttachmentDto(attachment.getId(), attachment.getDocType(),
                         attachment.getFileName(), attachment.getContentType(),
