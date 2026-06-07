@@ -5,6 +5,7 @@ import { getDashboardStats, type DashboardStats } from '@/api/dashboard';
 import LoadingScreen from '@/components/common/LoadingScreen';
 import LoginPage from '@/pages/LoginPage';
 import AdminPage from '@/pages/AdminPage';
+import AdminConfigPage from '@/pages/AdminConfigPage';
 import CompanyProfilePage from '@/pages/CompanyProfilePage';
 import DeclarationsPage from '@/pages/DeclarationsPage';
 import CreateDeclarationPage from '@/pages/CreateDeclarationPage';
@@ -180,7 +181,16 @@ function HomePage() {
               className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
             >
               <h2 className="font-semibold text-gray-900">Admin Panel</h2>
-              <p className="text-sm text-gray-500 mt-1">Manage users and system configuration</p>
+              <p className="text-sm text-gray-500 mt-1">Manage users, jobs and AI models</p>
+            </Link>
+          )}
+          {role === 'ADMIN' && (
+            <Link
+              to="/admin/config"
+              className="block p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+            >
+              <h2 className="font-semibold text-gray-900">Configuration</h2>
+              <p className="text-sm text-gray-500 mt-1">Manage document types and tariff rates</p>
             </Link>
           )}
           {role === 'DECLARANT' && (
@@ -255,6 +265,16 @@ function AppRoutes() {
           <AuthGuard>
             <AdminGuard>
               <AdminPage />
+            </AdminGuard>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/admin/config"
+        element={
+          <AuthGuard>
+            <AdminGuard>
+              <AdminConfigPage />
             </AdminGuard>
           </AuthGuard>
         }
