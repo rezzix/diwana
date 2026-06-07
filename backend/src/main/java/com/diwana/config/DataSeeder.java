@@ -514,13 +514,13 @@ public class DataSeeder implements CommandLineRunner {
             new SeedModel("Together AI", "google/gemma-4-31B-it",
                 "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "VLM", "serverless", 1),
             new SeedModel("Together AI", "moonshotai/Kimi-K2.6",
-                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-2", "VLM", "serverless", 2),
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-2", "VLM", "serverless", null),
             new SeedModel("Fireworks AI", "accounts/fireworks/models/kimi-k2p6",
-                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-1", "VLM", "serverless", 3),
+                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-1", "VLM", "serverless", null),
             new SeedModel("Fireworks AI", "accounts/fireworks/models/qwen3p6-plus",
-                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-2", "VLM", "serverless", 4),
+                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-2", "VLM", "serverless", null),
             new SeedModel("HuggingFace", "unsloth/Qwen3.6-27B-MTP-GGUF",
-                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 5)
+                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 2)
         );
 
         List<AiModel> models = seeds.stream().map(s -> new AiModel(
