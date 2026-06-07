@@ -77,10 +77,10 @@ export default function AdminPage() {
   const [aiModels, setAiModels] = useState<AiModelDto[]>([]);
   const [aiModelsLoading, setAiModelsLoading] = useState(true);
   const [showCreateAiModel, setShowCreateAiModel] = useState(false);
-  const [aiModelForm, setAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true });
+  const [aiModelForm, setAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '' });
   const [aiModelCreating, setAiModelCreating] = useState(false);
   const [editingAiModel, setEditingAiModel] = useState<AiModelDto | null>(null);
-  const [editAiModelForm, setEditAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true });
+  const [editAiModelForm, setEditAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '' });
 
   const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -1091,10 +1091,19 @@ export default function AdminPage() {
                 setError('');
                 setSuccess('');
                 try {
-                  await createAiModel(aiModelForm as CreateAiModelRequest);
+                  await createAiModel({
+                    provider: aiModelForm.provider,
+                    model: aiModelForm.model,
+                    url: aiModelForm.url,
+                    apiKey: aiModelForm.apiKey,
+                    type: aiModelForm.type,
+                    active: aiModelForm.active,
+                    deployment: aiModelForm.deployment || null,
+                    callOrder: aiModelForm.callOrder ? Number(aiModelForm.callOrder) : null,
+                  });
                   setSuccess(`AI model "${aiModelForm.model}" created`);
                   setShowCreateAiModel(false);
-                  setAiModelForm({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true });
+                  setAiModelForm({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '' });
                   fetchAiModels();
                 } catch (err: unknown) {
                   setError(err instanceof Error ? err.message : 'Failed to create AI model');
@@ -1141,6 +1150,26 @@ export default function AdminPage() {
                       <option value="LLM">LLM (Text only)</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Deployment</label>
+                    <select value={aiModelForm.deployment}
+                      onChange={(e) => setAiModelForm({ ...aiModelForm, deployment: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="">— Select —</option>
+                      <option value="local">Local</option>
+                      <option value="remote">Remote</option>
+                      <option value="serverless">Serverless</option>
+                      <option value="dedicated">Dedicated</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Call Order</label>
+                    <input type="number" min="1" value={aiModelForm.callOrder}
+                      onChange={(e) => setAiModelForm({ ...aiModelForm, callOrder: e.target.value })}
+                      placeholder="e.g. 1"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-gray-400">Empty = not auto-used. Lower = higher priority.</p>
+                  </div>
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={aiModelForm.active}
@@ -1165,7 +1194,16 @@ export default function AdminPage() {
                 setError('');
                 setSuccess('');
                 try {
-                  await updateAiModel(editingAiModel.id, editAiModelForm);
+                  await updateAiModel(editingAiModel.id, {
+                    provider: editAiModelForm.provider,
+                    model: editAiModelForm.model,
+                    url: editAiModelForm.url,
+                    apiKey: editAiModelForm.apiKey,
+                    type: editAiModelForm.type,
+                    active: editAiModelForm.active,
+                    deployment: editAiModelForm.deployment || null,
+                    callOrder: editAiModelForm.callOrder ? Number(editAiModelForm.callOrder) : null,
+                  });
                   setSuccess(`AI model "${editAiModelForm.model}" updated`);
                   setEditingAiModel(null);
                   fetchAiModels();
@@ -1208,6 +1246,26 @@ export default function AdminPage() {
                       <option value="LLM">LLM (Text only)</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Deployment</label>
+                    <select value={editAiModelForm.deployment}
+                      onChange={(e) => setEditAiModelForm({ ...editAiModelForm, deployment: e.target.value })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      <option value="">— Select —</option>
+                      <option value="local">Local</option>
+                      <option value="remote">Remote</option>
+                      <option value="serverless">Serverless</option>
+                      <option value="dedicated">Dedicated</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Call Order</label>
+                    <input type="number" min="1" value={editAiModelForm.callOrder}
+                      onChange={(e) => setEditAiModelForm({ ...editAiModelForm, callOrder: e.target.value })}
+                      placeholder="e.g. 1"
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-amber-600">Empty = not auto-used. Lower = higher priority.</p>
+                  </div>
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={editAiModelForm.active}
@@ -1234,15 +1292,17 @@ export default function AdminPage() {
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Model</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-700">URL</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Type</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Deployment</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Order</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {aiModelsLoading ? (
-                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading...</td></tr>
                   ) : aiModels.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-8 text-gray-400">No AI models found</td></tr>
+                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">No AI models found</td></tr>
                   ) : aiModels.map((m) => (
                     <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">{m.provider}</td>
@@ -1254,12 +1314,20 @@ export default function AdminPage() {
                         }`}>{m.type}</span>
                       </td>
                       <td className="px-4 py-3 text-center">
+                        <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize">
+                          {m.deployment || '—'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">
+                        {m.callOrder != null ? m.callOrder : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
                         <span className={`inline-block w-2 h-2 rounded-full ${m.active ? 'bg-green-500' : 'bg-red-500'}`} />
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
                         <button onClick={() => {
                           setEditingAiModel(m);
-                          setEditAiModelForm({ provider: m.provider, model: m.model, url: m.url, apiKey: m.apiKey, type: m.type, active: m.active });
+                          setEditAiModelForm({ provider: m.provider, model: m.model, url: m.url, apiKey: m.apiKey, type: m.type, active: m.active, deployment: m.deployment || '', callOrder: m.callOrder != null ? String(m.callOrder) : '' });
                           setShowCreateAiModel(false);
                         }}
                           className="text-xs px-2 py-1 bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition-colors">
