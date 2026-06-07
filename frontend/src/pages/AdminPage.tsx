@@ -19,9 +19,12 @@ const roleBadge: Record<string, string> = {
   CONTROLLER: 'bg-green-100 text-green-700',
 };
 
-export default function AdminPage() {
+export default function AdminPage({ defaultTab }: { defaultTab?: string }) {
   // Tab navigation
-  const [activeTab, setActiveTab] = useState<'users' | 'document-types' | 'tariff-rates' | 'jobs' | 'ai-models'>('users');
+  const validTabs = ['users', 'document-types', 'tariff-rates', 'jobs', 'ai-models'] as const;
+  type Tab = typeof validTabs[number];
+  const initialTab = defaultTab && validTabs.includes(defaultTab as Tab) ? defaultTab as Tab : 'users';
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
 
   // Users state
   const [users, setUsers] = useState<UserDto[]>([]);
