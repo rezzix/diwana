@@ -8,6 +8,7 @@ build/
 gradle/wrapper/gradle-wrapper.jar
 
 # Node
+node_modules/
 frontend/node_modules/
 
 # IDE
@@ -37,6 +38,17 @@ Thumbs.db
 *.h2.db
 *.mv.db
 *.trace.db
+
+# Uploaded document files
+backend/data/
+
+# E2E test artifacts
+e2e/
+test-results/
+package-lock.json
+
+# Playwright
+playwright.config.ts
 
 # Lock files from dependencies (keep package-lock.json, ignore others)
 frontend/yarn.lock
