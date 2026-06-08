@@ -1299,6 +1299,31 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                         <span className={`inline-block w-2 h-2 rounded-full ${m.active ? 'bg-green-500' : 'bg-red-500'}`} />
                       </td>
                       <td className="px-4 py-3 text-right space-x-2">
+                        {m.callOrder !== 1 && (
+                          <button onClick={async () => {
+                            setError(''); setSuccess('');
+                            try {
+                              // Promote this model to order 1, shift all other ordered models up by 1
+                              const updates = aiModels
+                                .filter((o) => o.callOrder != null || o.id === m.id)
+                                .map((o) => updateAiModel(o.id, {
+                                  provider: o.provider, model: o.model, url: o.url, apiKey: o.apiKey,
+                                  type: o.type, active: o.active, deployment: o.deployment,
+                                  callOrder: o.id === m.id ? 1 : (o.callOrder ?? 0) + 1,
+                                }));
+                              await Promise.all(updates);
+                              setSuccess(`"${m.model}" set as default`);
+                              fetchAiModels();
+                            } catch { setError('Failed to set default model'); }
+                          }}
+                            className="text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
+                            title="Set as default (order 1)">
+                            ⭐ Set as default
+                          </button>
+                        )}
+                        {m.callOrder === 1 && (
+                          <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded font-medium">⭐ Default</span>
+                        )}
                         <button onClick={() => {
                           setEditingAiModel(m);
                           setEditAiModelForm({ provider: m.provider, model: m.model, url: m.url, apiKey: m.apiKey, type: m.type, active: m.active, deployment: m.deployment || '', callOrder: m.callOrder != null ? String(m.callOrder) : '' });
