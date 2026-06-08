@@ -249,18 +249,8 @@ export default function LoginPage() {
                   required
                   autoComplete="current-password"
                   className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-shadow"
-                  placeholder={relaxedAuth ? "Any password works in dev mode" : "Enter your password"}
+                  placeholder="Enter your password"
                 />
-                {relaxedAuth && (
-                  <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                    Dev mode active — any password is accepted for existing users.
-                  </p>
-                )}
-                {authConfig?.mode === 'demo' && (
-                  <p className="mt-1.5 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1">
-                    Demo mode — password for all accounts: <strong>ADII4321</strong>
-                  </p>
-                )}
               </div>
 
               <button
