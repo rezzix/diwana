@@ -1184,38 +1184,38 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                 } catch (err: unknown) {
                   setError(err instanceof Error ? err.message : 'Failed to update AI model');
                 }
-              }} className="bg-amber-50 border border-amber-200 rounded-lg p-6 space-y-4">
-                <h2 className="font-semibold text-amber-900">Edit AI Model</h2>
+              }} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                <h2 className="font-semibold text-gray-900">Edit AI Model</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
                     <input type="text" required value={editAiModelForm.provider}
                       onChange={(e) => setEditAiModelForm({ ...editAiModelForm, provider: e.target.value })}
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
                     <input type="text" required value={editAiModelForm.model}
                       onChange={(e) => setEditAiModelForm({ ...editAiModelForm, model: e.target.value })}
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
                     <input type="url" required value={editAiModelForm.url}
                       onChange={(e) => setEditAiModelForm({ ...editAiModelForm, url: e.target.value })}
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
                     <input type="password" required value={editAiModelForm.apiKey}
                       onChange={(e) => setEditAiModelForm({ ...editAiModelForm, apiKey: e.target.value })}
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                     <select value={editAiModelForm.type}
                       onChange={(e) => setEditAiModelForm({ ...editAiModelForm, type: e.target.value })}
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                       <option value="VLM">VLM (Vision)</option>
                       <option value="LLM">LLM (Text only)</option>
                     </select>
@@ -1224,7 +1224,7 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                     <label className="block text-sm font-medium text-gray-700 mb-1">Deployment</label>
                     <select value={editAiModelForm.deployment}
                       onChange={(e) => setEditAiModelForm({ ...editAiModelForm, deployment: e.target.value })}
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
                       <option value="">— Select —</option>
                       <option value="local">Local</option>
                       <option value="remote">Remote</option>
@@ -1237,8 +1237,8 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                     <input type="number" min="1" value={editAiModelForm.callOrder}
                       onChange={(e) => setEditAiModelForm({ ...editAiModelForm, callOrder: e.target.value })}
                       placeholder="e.g. 1"
-                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
-                    <p className="mt-1 text-xs text-amber-600">Empty = not auto-used. Lower = higher priority.</p>
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-gray-400">Empty = not auto-used. Lower = higher priority.</p>
                   </div>
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 cursor-pointer">
