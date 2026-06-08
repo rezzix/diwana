@@ -16,9 +16,10 @@ interface HsCodeAutocompleteProps {
   onChange: (hsCode: string) => void;
   onSelect: (hsCode: string, description: string) => void;
   placeholder?: string;
+  className?: string;
 }
 
-export default function HsCodeAutocomplete({ tariffRates, value, onChange, onSelect, placeholder }: HsCodeAutocompleteProps) {
+export default function HsCodeAutocomplete({ tariffRates, value, onChange, onSelect, placeholder, className }: HsCodeAutocompleteProps) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
   const [hsCodes, setHsCodes] = useState<HsCodeDto[]>([]);
@@ -129,7 +130,7 @@ export default function HsCodeAutocomplete({ tariffRates, value, onChange, onSel
         onChange={(e) => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => { if (matches.length > 0) setOpen(true); }}
         onKeyDown={handleKeyDown}
-        className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm"
+        className={`w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm ${className ?? ''}`}
         placeholder={placeholder ?? 'e.g. 8471.30'}
         autoComplete="off"
       />

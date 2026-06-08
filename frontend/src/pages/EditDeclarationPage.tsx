@@ -39,6 +39,7 @@ export default function EditDeclarationPage() {
   const [lines, setLines] = useState<LineItemRequest[]>([]);
   const [lineForm, setLineForm] = useState<LineForm>(emptyLine());
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [formValidated, setFormValidated] = useState(false);
   const [customsOffice, setCustomsOffice] = useState('');
   const [notes, setNotes] = useState('');
   const [company, setCompany] = useState<{ name: string; ice: string | null } | null>(null);
@@ -106,10 +107,12 @@ export default function EditDeclarationPage() {
     const price = parseFloat(lineForm.unitPrice);
     const total = parseFloat(lineForm.totalValue || calcTotal(lineForm.quantity, lineForm.unitPrice));
     if (!lineForm.hsCode || !lineForm.description || !qty || !price) {
+      setFormValidated(true);
       setError('Fill in HS code, description, quantity, and unit price');
       return;
     }
     if (!HS_CODE_PATTERN.test(lineForm.hsCode)) {
+      setFormValidated(true);
       setError('HS code must be in format XXXX or XXXX.XX (e.g. 8471.30)');
       return;
     }
@@ -135,10 +138,12 @@ export default function EditDeclarationPage() {
     }
     setLineForm(emptyLine());
     setError('');
+    setFormValidated(false);
   };
 
   const handleEditLine = (i: number) => {
     const li = lines[i];
+    setFormValidated(false);
     setLineForm({
       hsCode: li.hsCode,
       description: li.description,
@@ -342,12 +347,13 @@ export default function EditDeclarationPage() {
                   onChange={(hsCode) => setLineForm({ ...lineForm, hsCode })}
                   onSelect={(hsCode, description) => setLineForm({ ...lineForm, hsCode, description })}
                   placeholder="e.g. 8471.30"
+                  className={formValidated && (!lineForm.hsCode || !HS_CODE_PATTERN.test(lineForm.hsCode)) ? 'bg-red-50' : ''}
                 />
               </div>
               <div className="md:col-span-3">
                 <label className="block text-xs font-medium text-gray-700 mb-1">Description *</label>
                 <input type="text" value={lineForm.description} onChange={(e) => setLineForm({ ...lineForm, description: e.target.value })}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+                  className={`w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm ${formValidated && !lineForm.description ? 'bg-red-50' : ''}`} />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
@@ -365,7 +371,7 @@ export default function EditDeclarationPage() {
                   onChange={(e) => {
                     setLineForm({ ...lineForm, quantity: e.target.value, totalValue: calcTotal(e.target.value, lineForm.unitPrice) });
                   }}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+                  className={`w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm ${formValidated && !parseFloat(lineForm.quantity) ? 'bg-red-50' : ''}`} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Unit</label>
@@ -378,7 +384,7 @@ export default function EditDeclarationPage() {
                   onChange={(e) => {
                     setLineForm({ ...lineForm, unitPrice: e.target.value, totalValue: calcTotal(lineForm.quantity, e.target.value) });
                   }}
-                  className="w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm" />
+                  className={`w-full px-2.5 py-2 border border-gray-300 rounded-lg text-sm ${formValidated && !parseFloat(lineForm.unitPrice) ? 'bg-red-50' : ''}`} />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Total</label>
@@ -400,7 +406,7 @@ export default function EditDeclarationPage() {
               {editingIndex != null ? 'Update Goods Line' : '+ Add Goods Line'}
             </button>
             {editingIndex != null && (
-              <button type="button" onClick={() => { setEditingIndex(null); setLineForm(emptyLine()); }}
+              <button type="button" onClick={() => { setEditingIndex(null); setLineForm(emptyLine()); setFormValidated(false); }}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50 transition-colors">
                 Cancel Edit
               </button>
