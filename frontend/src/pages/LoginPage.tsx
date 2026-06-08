@@ -168,8 +168,8 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Quick login for dev mode */}
-              {relaxedAuth && devUsers.length > 0 && (
+              {/* Quick login for dev / demo mode */}
+              {authConfig && devUsers.length > 0 && (
                 <div>
                   <button
                     type="button"

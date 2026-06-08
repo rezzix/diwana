@@ -27,9 +27,14 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Component
 @Order(1)
 public class DataSeeder implements CommandLineRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
     @Value("${diwana.mode:prod}")
     private String mode;
@@ -599,7 +604,19 @@ public class DataSeeder implements CommandLineRunner {
     // ---- Users ----
 
     private void seedUsers() {
-        if (userRepository.count() > 0) return;
+        if (userRepository.count() > 0) {
+            // Demo mode: ensure all users have the demo password even if DB was
+            // previously seeded in dev/prod mode with a different password
+            if ("demo".equals(mode)) {
+                List<User> existing = userRepository.findAll();
+                for (User u : existing) {
+                    u.setPasswordHash(passwordEncoder.encode("ADII4321"));
+                }
+                userRepository.saveAll(existing);
+                log.info("[Seeder] Updated {} existing user(s) to demo password (ADII4321)", existing.size());
+            }
+            return;
+        }
 
         Company smie = companyRepository.findByKey("SMIE").orElse(null);
         Company afl = companyRepository.findByKey("AFL").orElse(null);
