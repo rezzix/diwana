@@ -158,17 +158,7 @@ public class DataSeeder implements CommandLineRunner {
     // ---- Document Types ----
 
     private void seedDocumentTypes() {
-        if (documentTypeRepository.count() > 0) {
-            // Fix: Certificate of Origin should not be VLM-importable
-            documentTypeRepository.findByCode("CERTIFICATE_OF_ORIGIN").ifPresent(dt -> {
-                if (dt.getImportOrder() != null) {
-                    dt.setImportOrder(null);
-                    documentTypeRepository.save(dt);
-                    log.info("[Seeder] Removed importOrder from CERTIFICATE_OF_ORIGIN");
-                }
-            });
-            return;
-        }
+        if (documentTypeRepository.count() > 0) return;
 
         List<DocumentType> docTypes = List.of(
             createDocType("COMMERCIAL_INVOICE", "Commercial Invoice", "Invoice from the supplier for goods purchased", "*", 1),
