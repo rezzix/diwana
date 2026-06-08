@@ -410,7 +410,8 @@ export default function DeclarationDetailPage() {
           setUploadType={setUploadType}
           uploading={uploading}
           setUploading={setUploading}
-          canEdit={canEditDocs}
+          canEdit={false}
+          hideImport
           onUpload={handleUpload}
           onDelete={handleDeleteAtt}
           onReplace={handleReplaceAtt}
