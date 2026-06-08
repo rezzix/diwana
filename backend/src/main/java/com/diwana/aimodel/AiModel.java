@@ -44,6 +44,8 @@ public class AiModel {
         this.apiKey = apiKey;
         this.type = type;
         this.active = active;
+        this.deployment = deployment;
+        this.callOrder = callOrder;
     }
 
     public Long getId() { return id; }

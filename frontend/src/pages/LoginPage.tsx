@@ -97,6 +97,9 @@ export default function LoginPage() {
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-lg font-bold text-gray-900 tracking-tight">Diwana</span>
+            {authConfig?.version && (
+              <span className="text-xs text-gray-400 font-mono">v{authConfig.version}</span>
+            )}
           </div>
           {authConfig && (
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
