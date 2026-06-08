@@ -8,6 +8,8 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  version: string | null;
+  setVersion: (v: string) => void;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkSession: (signal?: AbortSignal) => Promise<void>;
@@ -16,9 +18,12 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
+  version: null,
   isLoading: true,
   error: null,
   isAuthenticated: false,
+
+  setVersion: (v) => set({ version: v }),
 
   login: async (username, password) => {
     set({ isLoading: true, error: null });

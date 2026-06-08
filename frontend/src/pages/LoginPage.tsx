@@ -52,7 +52,7 @@ export default function LoginPage() {
   useEffect(() => {
     const controller = new AbortController();
     getAuthConfig(controller.signal).then((config) => {
-      if (!controller.signal.aborted) setAuthConfig(config);
+      if (!controller.signal.aborted) { setAuthConfig(config); useAuthStore.getState().setVersion(config.version); }
     }).catch(() => {});
     getDevUsers(controller.signal)
       .then((data) => {

@@ -47,6 +47,7 @@ const statusCardBg: Record<string, string> = {
 
 function HomePage() {
   const user = useAuthStore((s) => s.user);
+  const appVersion = useAuthStore((s) => s.version);
   const logout = useAuthStore((s) => s.logout);
   const location = useLocation();
   const role = user?.role;
@@ -75,7 +76,12 @@ function HomePage() {
     <div className="min-h-screen bg-surface">
       <header className="bg-white border-b border-gray-200 px-6 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <span className="text-lg font-bold text-gray-900 tracking-tight">Diwana</span>
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-bold text-gray-900 tracking-tight">Diwana</span>
+            {appVersion && (
+              <span className="text-xs text-gray-400 font-mono">v{appVersion}</span>
+            )}
+          </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-500">
               {user?.firstName} {user?.lastName}

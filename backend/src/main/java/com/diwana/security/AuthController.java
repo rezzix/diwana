@@ -31,15 +31,18 @@ public class AuthController {
     private final UserMapper userMapper;
     private final CustomUserDetailsService userDetailsService;
     private final String mode;
+    private final String version;
 
     public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository, UserMapper userMapper,
                           CustomUserDetailsService userDetailsService,
-                          @Value("${diwana.mode:prod}") String mode) {
+                          @Value("${diwana.mode:prod}") String mode,
+                          @Value("${diwana.version}") String version) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.userDetailsService = userDetailsService;
         this.mode = mode;
+        this.version = version;
     }
 
     public record LoginRequest(
@@ -97,12 +100,12 @@ public class AuthController {
 
     public record DevUserDto(String username, String displayName, String role, String company, String customsOffice) {}
 
-    public record AuthConfig(boolean relaxedAuth, String mode) {}
+    public record AuthConfig(boolean relaxedAuth, String mode, String version) {}
 
     @GetMapping("/config")
     public ResponseEntity<ApiResponse<AuthConfig>> config() {
         boolean relaxedAuth = "dev".equals(mode);
-        return ResponseEntity.ok(ApiResponse.of(new AuthConfig(relaxedAuth, mode)));
+        return ResponseEntity.ok(ApiResponse.of(new AuthConfig(relaxedAuth, mode, version)));
     }
 
     @PostMapping("/logout")

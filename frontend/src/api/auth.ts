@@ -20,6 +20,7 @@ export async function getDevUsers(signal?: AbortSignal): Promise<DevUserDto[]> {
 export interface AuthConfig {
   relaxedAuth: boolean;
   mode: string;
+  version: string;
 }
 
 export async function getAuthConfig(signal?: AbortSignal): Promise<AuthConfig> {
