@@ -54,6 +54,7 @@ public class VlmService {
 
     private static final String SYSTEM_PROMPT = """
             You are an invoice data extraction assistant. Extract structured data from the invoice document image(s).
+            DO NOT include any thinking, reasoning, explanation, or commentary. Output ONLY the raw JSON object, nothing else.
             Return ONLY a JSON object (no markdown fences, no commentary) with this exact schema:
             {
               "invoice": {
@@ -271,6 +272,12 @@ public class VlmService {
                 content1 = content1.substring(0, content1.length() - 3);
             }
             content1 = content1.trim();
+
+            // Strip any thinking/reasoning text before the JSON object
+            int jsonStart = content1.indexOf('{');
+            if (jsonStart > 0) {
+                content1 = content1.substring(jsonStart);
+            }
 
             return content1;
         } catch (Exception e) {
