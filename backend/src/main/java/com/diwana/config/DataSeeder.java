@@ -604,19 +604,7 @@ public class DataSeeder implements CommandLineRunner {
     // ---- Users ----
 
     private void seedUsers() {
-        if (userRepository.count() > 0) {
-            // Demo mode: ensure all users have the demo password even if DB was
-            // previously seeded in dev/prod mode with a different password
-            if ("demo".equals(mode)) {
-                List<User> existing = userRepository.findAll();
-                for (User u : existing) {
-                    u.setPasswordHash(passwordEncoder.encode("ADII4321"));
-                }
-                userRepository.saveAll(existing);
-                log.info("[Seeder] Updated {} existing user(s) to demo password (ADII4321)", existing.size());
-            }
-            return;
-        }
+        if (userRepository.count() > 0) return;
 
         Company smie = companyRepository.findByKey("SMIE").orElse(null);
         Company afl = companyRepository.findByKey("AFL").orElse(null);
