@@ -1,6 +1,6 @@
 diwana:
   mode: dev
-  version: ${DIWANA_VERSION:2606080926}
+  version: 2606081038
   openai:
     api-key: ${OPENAI_API_KEY:}
     base-url: ${OPENAI_BASE_URL:https://api.together.ai/v1}
