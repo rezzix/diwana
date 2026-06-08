@@ -22,17 +22,17 @@ function EditActionsDropdown({ onReplace, onDelete }: {
 
   return (
     <div ref={ref} className="relative inline-block">
-      <button onClick={() => setOpen(!open)}
+      <button type="button" onClick={() => setOpen(!open)}
         className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors">
         Edit ▾
       </button>
       {open && (
         <div className="absolute right-0 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1">
-          <button onClick={() => { setOpen(false); onReplace(); }}
+          <button type="button" onClick={() => { setOpen(false); onReplace(); }}
             className="w-full text-left px-3 py-1.5 text-xs text-amber-700 hover:bg-amber-50 transition-colors">
             Replace
           </button>
-          <button onClick={() => { setOpen(false); onDelete(); }}
+          <button type="button" onClick={() => { setOpen(false); onDelete(); }}
             className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors">
             Delete
           </button>
@@ -63,7 +63,7 @@ function DocumentViewer({ attachment, declarationId, onClose }: {
               className="text-xs px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors">
               Download
             </a>
-            <button onClick={onClose}
+            <button type="button" onClick={onClose}
               className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
           </div>
         </div>
@@ -245,7 +245,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
             <span className="font-medium text-gray-900">Smart Import</span>
             <span className="text-sm text-gray-500 truncate">{attachment.fileName}</span>
           </div>
-          <button onClick={onClose}
+          <button type="button" onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
         <div className="flex-1 overflow-auto p-4">
@@ -262,7 +262,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
           {vlmError && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
               {vlmError}
-              <button onClick={onClose}
+              <button type="button" onClick={onClose}
                 className="ml-2 text-xs underline">Close</button>
             </div>
           )}
@@ -361,11 +361,11 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
                   {onAddLines && origins && (
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-3">
-                        <button onClick={selectAllValid}
+                        <button type="button" onClick={selectAllValid}
                           className="text-xs text-primary-600 hover:underline">
                           Select all valid
                         </button>
-                        <button onClick={deselectAll}
+                        <button type="button" onClick={deselectAll}
                           className="text-xs text-gray-500 hover:underline">
                           Deselect all
                         </button>
@@ -376,7 +376,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
                           )}
                         </span>
                       </div>
-                      <button onClick={handleAddLines}
+                      <button type="button" onClick={handleAddLines}
                         disabled={selectedLines.size === 0}
                         className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                         Add {selectedLines.size} line{selectedLines.size !== 1 ? 's' : ''} to declaration
@@ -663,7 +663,7 @@ export default function SupportingDocumentsSection({
                     <>
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => setViewingAttachment(row.attachment!)}
+                          <button type="button" onClick={() => setViewingAttachment(row.attachment!)}
                             className="text-primary-600 hover:underline font-medium">
                             {row.attachment.fileName}
                           </button>
@@ -675,7 +675,7 @@ export default function SupportingDocumentsSection({
                       <td className="px-4 py-2 text-right text-gray-600">{formatSize(row.attachment.fileSize)}</td>
                       <td className="px-4 py-2 text-right text-gray-400 text-xs">{new Date(row.attachment.createdAt).toLocaleString()}</td>
                       <td className="px-4 py-2 text-right space-x-2">
-                        <button onClick={() => setViewingAttachment(row.attachment!)}
+                        <button type="button" onClick={() => setViewingAttachment(row.attachment!)}
                           className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors">
                           View
                         </button>
@@ -687,7 +687,7 @@ export default function SupportingDocumentsSection({
                           // PROCESSING state
                           if (status === 'PROCESSING') {
                             return (
-                              <button disabled
+                              <button type="button" disabled
                                 className="text-xs px-2 py-1 bg-gray-200 text-gray-500 rounded cursor-not-allowed transition-colors">
                                 <span className="inline-flex items-center gap-1">
                                   <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -702,7 +702,7 @@ export default function SupportingDocumentsSection({
                           // FAILED state — show retry
                           if (status === 'FAILED') {
                             return (
-                              <button onClick={() => handleSmartImport(row.attachment!)}
+                              <button type="button" onClick={() => handleSmartImport(row.attachment!)}
                                 title={row.attachment!.vlmError || 'VLM import failed. Click to retry.'}
                                 className="text-xs px-2 py-1 bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors">
                                 Import ↻
@@ -712,7 +712,7 @@ export default function SupportingDocumentsSection({
                           // COMPLETED — show View Data
                           if (status === 'COMPLETED' || row.attachment!.imported) {
                             return (
-                              <button onClick={() => handleSmartImport(row.attachment!)}
+                              <button type="button" onClick={() => handleSmartImport(row.attachment!)}
                                 className="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded hover:bg-emerald-100 transition-colors">
                                 View Data
                               </button>
@@ -720,7 +720,7 @@ export default function SupportingDocumentsSection({
                           }
                           // Not started — show Import button
                           return (
-                            <button onClick={() => handleSmartImport(row.attachment!)}
+                            <button type="button" onClick={() => handleSmartImport(row.attachment!)}
                               disabled={!canImport(row.docType.code)}
                               title={canImport(row.docType.code) ? 'Smart import with VLM' : 'Higher-priority documents must be imported first'}
                               className="text-xs px-2 py-1 bg-green-50 text-green-700 rounded hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
@@ -743,7 +743,7 @@ export default function SupportingDocumentsSection({
                       <td className="px-4 py-2 text-right text-gray-400">—</td>
                       <td className="px-4 py-2 text-right">
                         {canEdit && (
-                          <button onClick={() => triggerUpload(row.docType.code)} disabled={uploading}
+                          <button type="button" onClick={() => triggerUpload(row.docType.code)} disabled={uploading}
                             className="text-xs px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 transition-colors">
                             {uploading ? 'Uploading...' : 'Upload'}
                           </button>
