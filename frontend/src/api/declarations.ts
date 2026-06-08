@@ -76,6 +76,7 @@ export interface LineItemRequest {
   dutyRate?: number;
   vatRate?: number;
   currency?: string;
+  hasIssues?: boolean;
 }
 
 export interface CreateDeclarationRequest {

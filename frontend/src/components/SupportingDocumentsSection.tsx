@@ -204,12 +204,12 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
     .map((v, i) => v.valid ? i : -1)
     .filter((i) => i >= 0);
 
-  // Auto-select all valid lines when data arrives
+  // Auto-select all lines when data arrives
   useEffect(() => {
-    if (validLineIndices.length > 0 && selectedLines.size === 0) {
-      setSelectedLines(new Set(validLineIndices));
+    if (parsedData?.lineItems && parsedData.lineItems.length > 0 && selectedLines.size === 0) {
+      setSelectedLines(new Set(parsedData.lineItems.map((_, i) => i)));
     }
-  }, [validLineIndices.length]);
+  }, [parsedData?.lineItems?.length]);
 
   const toggleLine = (index: number) => {
     setSelectedLines((prev) => {
@@ -220,7 +220,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
     });
   };
 
-  const selectAllValid = () => setSelectedLines(new Set(validLineIndices));
+  const selectAllValid = () => setSelectedLines(new Set(parsedData?.lineItems?.map((_, i) => i) ?? []));
   const deselectAll = () => setSelectedLines(new Set());
 
   const handleAddLines = () => {
@@ -229,7 +229,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
     for (const index of Array.from(selectedLines).sort()) {
       const item = parsedData.lineItems[index] as VlmLineItem;
       const mapped = mapVlmLineToLineItemRequest(item, origins);
-      if (mapped) linesToAdd.push(mapped);
+      linesToAdd.push(mapped);
     }
     if (linesToAdd.length > 0) {
       onAddLines(linesToAdd);
@@ -330,8 +330,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
                                   <input type="checkbox"
                                     checked={selectedLines.has(i)}
                                     onChange={() => toggleLine(i)}
-                                    disabled={!isValid}
-                                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:opacity-40"
+                                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                                   />
                                 </td>
                               )}
@@ -371,7 +370,10 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
                           Deselect all
                         </button>
                         <span className="text-xs text-gray-500">
-                          {selectedLines.size} of {validLineIndices.length} valid line{validLineIndices.length !== 1 ? 's' : ''} selected
+                          {selectedLines.size} of {parsedData?.lineItems?.length ?? 0} line{(parsedData?.lineItems?.length ?? 0) !== 1 ? 's' : ''} selected
+                          {validLineIndices.length < (parsedData?.lineItems?.length ?? 0) && (
+                            <span className="ml-1 text-amber-600">({(parsedData?.lineItems?.length ?? 0) - validLineIndices.length} with missing data)</span>
+                          )}
                         </span>
                       </div>
                       <button onClick={handleAddLines}
