@@ -450,6 +450,30 @@ export default function DeclarationDetailPage() {
           </table>
         </section>
 
+        {/* Estimated duties summary */}
+        {hasLineItems && (() => {
+          const totalValue = decl.lineItems.reduce((s, li) => s + (li.totalValue || 0), 0);
+          const totalDuty = decl.lineItems.reduce((s, li) => s + (li.dutyAmount || 0), 0);
+          const totalVat = decl.lineItems.reduce((s, li) => s + (li.vatAmount || 0), 0);
+          return (
+            <section className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+              <h2 className="font-semibold text-amber-900 mb-3">Estimated Duties &amp; Taxes</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div><span className="text-amber-700 block">Total Goods Value</span><span className="font-medium text-gray-900">{totalValue.toFixed(2)}</span></div>
+                <div><span className="text-amber-700 block">Estimated Duty</span><span className="font-medium text-amber-900">{totalDuty.toFixed(2)}</span></div>
+                <div><span className="text-amber-700 block">Estimated VAT</span><span className="font-medium text-blue-900">{totalVat.toFixed(2)}</span></div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-amber-200 text-sm">
+                <div className="flex justify-between">
+                  <span className="font-medium text-amber-900">Estimated Total (Value + Duty + VAT)</span>
+                  <span className="font-bold text-gray-900">{(totalValue + totalDuty + totalVat).toFixed(2)}</span>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-amber-600">These are indicative estimates based on current tariff rates. Final amounts are determined upon customs review.</p>
+            </section>
+          );
+        })()}
+
         {/* Audit Trail */}
         {auditLog.length > 0 && (
           <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">

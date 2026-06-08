@@ -468,25 +468,6 @@ export default function EditDeclarationPage() {
             </section>
           )}
 
-          {/* Estimated duties summary */}
-          {lines.length > 0 && (
-            <section className="bg-amber-50 border border-amber-200 rounded-lg p-6">
-              <h2 className="font-semibold text-amber-900 mb-3">Estimated Duties &amp; Taxes</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div><span className="text-amber-700 block">Total Goods Value</span><span className="font-medium text-gray-900">{totals.value.toFixed(2)}</span></div>
-                <div><span className="text-amber-700 block">Estimated Duty</span><span className="font-medium text-amber-900">{totals.duty.toFixed(2)}</span></div>
-                <div><span className="text-amber-700 block">Estimated VAT</span><span className="font-medium text-blue-900">{totals.vat.toFixed(2)}</span></div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-amber-200 text-sm">
-                <div className="flex justify-between">
-                  <span className="font-medium text-amber-900">Estimated Total (Value + Duty + VAT)</span>
-                  <span className="font-bold text-gray-900">{(totals.value + totals.duty + totals.vat).toFixed(2)}</span>
-                </div>
-              </div>
-              <p className="mt-2 text-xs text-amber-600">These are indicative estimates based on current tariff rates. Final amounts are determined upon customs review.</p>
-            </section>
-          )}
-
           <div className="flex justify-end gap-3">
             <Link to={`/declarations/${id}`}
               className="px-6 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">Cancel</Link>
