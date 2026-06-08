@@ -168,6 +168,11 @@ export default function EditDeclarationPage() {
       setError('Please select a customs office');
       return;
     }
+    const incompleteCount = lines.filter((li) => li.hasIssues).length;
+    if (incompleteCount > 0) {
+      setError(`${incompleteCount} line${incompleteCount !== 1 ? 's have' : ' has'} missing data — fix or remove ${incompleteCount !== 1 ? 'them' : 'it'} before saving`);
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -425,16 +430,17 @@ export default function EditDeclarationPage() {
                   {lines.map((li, i) => {
                     const est = resolveTariffRate(li.hsCode, li.countryOfOrigin, li.totalValue, tariffRates);
                     return (
-                      <tr key={i} className="border-b border-gray-100">
-                        <td className="px-3 py-2 font-mono text-xs">{li.hsCode}</td>
-                        <td className="px-3 py-2">{li.description}</td>
-                        <td className="px-3 py-2 text-right">{li.quantity}</td>
-                        <td className="px-3 py-2 text-right">{li.unitPrice.toFixed(2)}</td>
-                        <td className="px-3 py-2 text-right font-medium">{li.totalValue.toFixed(2)}</td>
+                      <tr key={i} className={`border-b border-gray-100 ${li.hasIssues ? 'bg-red-50/50' : ''}`}>
+                        <td className="px-3 py-2 font-mono text-xs">{li.hsCode || '—'}</td>
+                        <td className="px-3 py-2">{li.description || '—'}</td>
+                        <td className="px-3 py-2 text-right">{li.quantity || '—'}</td>
+                        <td className="px-3 py-2 text-right">{li.unitPrice ? li.unitPrice.toFixed(2) : '—'}</td>
+                        <td className="px-3 py-2 text-right font-medium">{li.totalValue ? li.totalValue.toFixed(2) : '—'}</td>
                         <td className="px-3 py-2 text-right text-amber-700">{est.dutyAmount.toFixed(2)} <span className="text-xs text-gray-400">({est.dutyRate}%)</span></td>
                         <td className="px-3 py-2 text-right text-blue-700">{est.vatAmount.toFixed(2)} <span className="text-xs text-gray-400">({est.vatRate}%)</span></td>
                         <td className="px-3 py-2 text-center text-xs text-gray-500">{li.currency}</td>
                         <td className="px-3 py-2 text-center whitespace-nowrap space-x-2">
+                          {li.hasIssues && <span className="text-xs text-red-600 mr-1">⚠</span>}
                           <button type="button" onClick={() => handleEditLine(i)} className="text-blue-500 hover:text-blue-700 text-xs">Edit</button>
                           <button type="button" onClick={() => handleRemoveLine(i)} className="text-red-500 hover:text-red-700 text-xs">✕</button>
                         </td>

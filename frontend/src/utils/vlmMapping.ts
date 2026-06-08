@@ -37,29 +37,30 @@ export function validateVlmLine(item: VlmLineItem): { valid: boolean; errors: st
 
 /**
  * Map a VLM line item to a LineItemRequest suitable for the declaration API.
- * Returns null if required fields are missing (use validateVlmLine first).
+ * Always returns a LineItemRequest — lines with missing fields get default values
+ * and are marked with hasIssues=true so the UI can flag them and block submission.
  */
 export function mapVlmLineToLineItemRequest(
   item: VlmLineItem,
   origins: OriginDto[],
-): LineItemRequest | null {
+): LineItemRequest {
   const { valid } = validateVlmLine(item);
-  if (!valid) return null;
 
-  const quantity = parseNumber(item.quantity)!;
-  const unitPrice = parseNumber(item.unitPrice)!;
-  const totalValue = parseNumber(item.totalValue) || quantity * unitPrice;
+  const quantity = parseNumber(item.quantity) || 0;
+  const unitPrice = parseNumber(item.unitPrice) || 0;
+  const totalValue = parseNumber(item.totalValue) || (quantity > 0 && unitPrice > 0 ? quantity * unitPrice : 0);
   const countryOfOrigin = mapCountryCode(item.countryOfOrigin, origins);
 
   return {
-    hsCode: item.hsCode!.trim(),
-    description: item.description!.trim(),
+    hsCode: item.hsCode?.trim() || '',
+    description: item.description?.trim() || '',
     countryOfOrigin: countryOfOrigin || undefined,
     quantity,
     unit: item.unit?.trim() || undefined,
     unitPrice,
     totalValue,
     currency: item.currency?.trim() || 'MAD',
+    hasIssues: !valid,
   };
 }
 
