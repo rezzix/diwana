@@ -1318,11 +1318,11 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                           }}
                             className="text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
                             title="Set as default (order 1)">
-                            ⭐ Set as default
+                            Set default
                           </button>
                         )}
                         {m.callOrder === 1 && (
-                          <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded font-medium">⭐ Default</span>
+                          <span className="text-xs px-2 py-1 bg-amber-100 text-amber-800 rounded font-medium">Default</span>
                         )}
                         <button onClick={() => {
                           setEditingAiModel(m);
