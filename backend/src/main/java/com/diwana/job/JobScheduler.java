@@ -31,15 +31,14 @@ public class JobScheduler {
 
     @Scheduled(fixedRate = 60_000)
     public void tick() {
-        log.debug("[JobScheduler] Ticking {} job(s)...", jobs.size());
         for (Job job : jobs) {
             try {
                 // Check if job is enabled in config
                 Optional<JobConfig> config = configRepository.findByName(job.getName());
                 if (config.isPresent() && !config.get().isEnabled()) {
-                    log.debug("[JobScheduler] Job '{}' is disabled in config — skipping", job.getName());
                     continue;
                 }
+                log.info("[JobScheduler] Running job '{}'...", job.getName());
                 job.run();
                 // Update last run timestamp
                 if (config.isPresent()) {
