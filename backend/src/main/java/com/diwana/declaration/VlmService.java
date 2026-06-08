@@ -80,6 +80,12 @@ public class VlmService {
             }
             If a field is not found in the document, use null. Do not invent values.
             For countryOfOrigin, use the ISO 3166-1 alpha-2 code (e.g. "CN" for China, "FR" for France).
+
+            IMPORTANT about hsCode: The Harmonized System (HS) code is a numeric code that classifies goods for customs.
+            It appears in formats like ####, ####.## or ###### (4 to 10 digits, optionally with dots).
+            It is often printed in a dedicated column on the invoice, sometimes handwritten.
+            The hsCode must contain ONLY the numeric code (with optional dots), never mix it with the description.
+            If you see a number that looks like an HS code in the description text, extract it as the hsCode field and remove it from the description.
             """;
 
     private static final String USER_PROMPT = """
