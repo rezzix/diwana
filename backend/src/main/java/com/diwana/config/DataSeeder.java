@@ -516,8 +516,10 @@ public class DataSeeder implements CommandLineRunner {
                          String deployment, Integer callOrder) {}
 
         List<SeedModel> seeds = List.of(
+            new SeedModel("HuggingFace", "Qwen/Qwen3.6-35B-A3B-FP8",
+                "https://nf4tvxqzesalmkqq.us-east-2.aws.endpoints.huggingface.cloud/v1", "PLACEHOLDER-HF", "VLM", "dedicated", 1),
             new SeedModel("Together AI", "google/gemma-4-31B-it",
-                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "VLM", "serverless", 1),
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "VLM", "serverless", 2),
             new SeedModel("Together AI", "moonshotai/Kimi-K2.6",
                 "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-2", "VLM", "serverless", null),
             new SeedModel("Fireworks AI", "accounts/fireworks/models/kimi-k2p6",
@@ -525,9 +527,9 @@ public class DataSeeder implements CommandLineRunner {
             new SeedModel("Fireworks AI", "accounts/fireworks/models/qwen3p6-plus",
                 "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-2", "VLM", "serverless", null),
             new SeedModel("HuggingFace", "unsloth/Qwen3.6-27B-MTP-GGUF",
-                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 2),
+                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 3),
             new SeedModel("HuggingFace", "ggml-org/gemma-4-26B-A4B-it-GGUF",
-                "https://gsgwct02nmeh1hku.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 3),
+                "https://gsgwct02nmeh1hku.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 4),
             new SeedModel("HuggingFace", "google/gemma-4-26B-A4B-it",
                 "https://hg6bm3g2bn195u7k.us-east-2.aws.endpoints.huggingface.cloud/v1", "PLACEHOLDER-HF", "VLM", "dedicated", null)
         );
