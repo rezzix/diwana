@@ -56,6 +56,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   checkSession: async (signal?: AbortSignal) => {
     const wasAuthenticated = get().isAuthenticated;
     if (!wasAuthenticated) set({ isLoading: true });
+    // Always load version/config on session check
+    authApi.getAuthConfig(signal).then((c) => {
+      if (!signal?.aborted) set({ version: c.version });
+    }).catch(() => {});
     try {
       const user = await authApi.me(signal);
       set({ user, isAuthenticated: true, isLoading: false });
