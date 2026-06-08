@@ -33,7 +33,7 @@ public class DeclarationAttachmentService {
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     private static final List<String> ALLOWED_TYPES = List.of(
-            "application/pdf", "image/jpeg", "image/png", "image/tiff"
+            "application/pdf", "image/jpeg", "image/png", "image/tiff", "image/webp"
     );
 
     public DeclarationAttachmentService(DeclarationAttachmentRepository attachmentRepository,
@@ -67,7 +67,7 @@ public class DeclarationAttachmentService {
                 && !ALLOWED_TYPES.contains(contentType)) {
             // Allow pdf, image/* types
             if (!contentType.startsWith("image/") && !contentType.equals("application/pdf")) {
-                throw new IllegalArgumentException("Only PDF and image files (JPEG, PNG, TIFF) are allowed");
+                throw new IllegalArgumentException("Only PDF and image files (JPEG, PNG, TIFF, WebP) are allowed");
             }
         }
 
@@ -130,7 +130,7 @@ public class DeclarationAttachmentService {
 
         String contentType = file.getContentType();
         if (contentType == null || (!contentType.startsWith("image/") && !contentType.equals("application/pdf"))) {
-            throw new IllegalArgumentException("Only PDF and image files (JPEG, PNG, TIFF) are allowed");
+            throw new IllegalArgumentException("Only PDF and image files (JPEG, PNG, TIFF, WebP) are allowed");
         }
 
         // Delete old file from storage

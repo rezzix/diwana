@@ -404,7 +404,7 @@ function SmartImportModal({ attachment, declarationId, onClose, onImported, onAd
   );
 }
 
-const ALLOWED_FILE_TYPES = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.tif'];
+const ALLOWED_FILE_TYPES = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.tif', '.webp'];
 const ALLOWED_MIME_PREFIXES = ['application/pdf', 'image/'];
 
 function validateFileType(file: File): boolean {
