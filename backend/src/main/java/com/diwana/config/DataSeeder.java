@@ -77,7 +77,7 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (!"dev".equals(mode)) {
+        if (!"dev".equals(mode) && !"demo".equals(mode)) {
             return;
         }
 
