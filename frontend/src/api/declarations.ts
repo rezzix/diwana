@@ -152,3 +152,16 @@ export interface AuditLogDto {
 export async function getAuditLog(declarationId: number, signal?: AbortSignal): Promise<AuditLogDto[]> {
   return apiGet<AuditLogDto[]>(`/declarations/${declarationId}/audit-log`, undefined, signal);
 }
+
+export interface LineAnalysisDto {
+  id: number;
+  lineItemId: number;
+  result: 'ALIGNED' | 'MISALIGNED';
+  comment: string | null;
+  llmModel: string | null;
+  analyzedAt: string | null;
+}
+
+export async function getDeclarationAnalyses(declarationId: number, signal?: AbortSignal): Promise<LineAnalysisDto[]> {
+  return apiGet<LineAnalysisDto[]>(`/declarations/${declarationId}/analyses`, undefined, signal);
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, getAuditLog, type DeclarationDto, type AuditLogDto } from '@/api/declarations';
+import { getDeclaration, deleteDeclaration, submitDeclaration, resubmitDeclaration, rejectDeclaration, approveDeclaration, requestInfoDeclaration, getAuditLog, getDeclarationAnalyses, type DeclarationDto, type AuditLogDto, type LineAnalysisDto } from '@/api/declarations';
 import { getAttachments, deleteAttachment, type AttachmentDto } from '@/api/attachments';
 import { getDocumentTypes, type DocumentTypeDto } from '@/api/documentTypes';
 import SupportingDocumentsSection from '@/components/SupportingDocumentsSection';
@@ -14,6 +14,7 @@ export default function DeclarationDetailPage() {
   const [decl, setDecl] = useState<DeclarationDto | null>(null);
   const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
   const [auditLog, setAuditLog] = useState<AuditLogDto[]>([]);
+  const [analyses, setAnalyses] = useState<LineAnalysisDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [uploadType, setUploadType] = useState('COMMERCIAL_INVOICE');
@@ -51,6 +52,13 @@ export default function DeclarationDetailPage() {
       if (signal?.aborted) return;
       setAttachments(atts);
       setAuditLog(logs);
+      // Fetch analyses for non-DRAFT declarations
+      if (d.status !== 'DRAFT') {
+        try {
+          const an = await getDeclarationAnalyses(Number(id), signal);
+          if (!signal?.aborted) setAnalyses(an);
+        } catch { /* analyses may not exist yet */ }
+      }
     } catch (err) {
       if (axios.isCancel(err)) return;
       setError('Failed to load declaration');
@@ -434,10 +442,13 @@ export default function DeclarationDetailPage() {
               <th className="text-right px-4 py-2 font-medium text-gray-700">Total</th>
               <th className="text-right px-4 py-2 font-medium text-gray-700">Duty</th>
               <th className="text-right px-4 py-2 font-medium text-gray-700">VAT</th>
+              {analyses.length > 0 && <th className="text-center px-4 py-2 font-medium text-gray-700">HS Check</th>}
             </tr></thead>
             <tbody>
-              {decl.lineItems.map((li, i) => (
-                <tr key={i} className="border-b border-gray-100">
+              {decl.lineItems.map((li, i) => {
+                const analysis = analyses.find((a) => a.lineItemId === li.id);
+                return (
+                <tr key={i} className={analysis?.result === 'MISALIGNED' ? 'border-b border-gray-100 bg-red-50' : 'border-b border-gray-100'}>
                   <td className="px-4 py-2 font-mono text-xs">{li.hsCode}</td>
                   <td className="px-4 py-2">{li.description}</td>
                   <td className="px-4 py-2 text-right">{li.quantity}</td>
@@ -445,8 +456,25 @@ export default function DeclarationDetailPage() {
                   <td className="px-4 py-2 text-right">{li.totalValue.toFixed(2)}</td>
                   <td className="px-4 py-2 text-right">{li.dutyAmount?.toFixed(2) || '—'}</td>
                   <td className="px-4 py-2 text-right">{li.vatAmount?.toFixed(2) || '—'}</td>
+                  {analyses.length > 0 && (
+                    <td className="px-4 py-2 text-center">
+                      {analysis ? (
+                        analysis.result === 'ALIGNED' ? (
+                          <span className="inline-flex items-center gap-1 text-green-600" title={analysis.comment || 'HS code matches description'}>
+                            ✓
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-red-600 font-medium" title={analysis.comment || 'HS code may not match description'}>
+                            ⚠
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
+                  )}
                 </tr>
-              ))}
+              );})}
             </tbody>
           </table>
         </section>

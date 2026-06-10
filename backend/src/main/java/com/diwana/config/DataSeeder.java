@@ -501,6 +501,8 @@ public class DataSeeder implements CommandLineRunner {
 
         // VLM retry job is disabled by default — admin must enable it
         jobConfigRepository.save(new JobConfig("vlm-retry", false));
+        // HS code analysis job is enabled by default — analyzes submitted declarations
+        jobConfigRepository.save(new JobConfig("hs-analysis", true));
     }
 
     // ---- AI Models ----

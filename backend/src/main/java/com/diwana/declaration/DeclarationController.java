@@ -27,16 +27,19 @@ public class DeclarationController {
     private final TariffRateRepository tariffRateRepository;
     private final CustomsOfficeRepository customsOfficeRepository;
     private final AuthHelper authHelper;
+    private final LineAnalysisRepository lineAnalysisRepository;
 
     public DeclarationController(DeclarationService declarationService, DeclarationMapper declarationMapper,
                                   CompanyService companyService, TariffRateRepository tariffRateRepository,
-                                  CustomsOfficeRepository customsOfficeRepository, AuthHelper authHelper) {
+                                  CustomsOfficeRepository customsOfficeRepository, AuthHelper authHelper,
+                                  LineAnalysisRepository lineAnalysisRepository) {
         this.declarationService = declarationService;
         this.declarationMapper = declarationMapper;
         this.companyService = companyService;
         this.tariffRateRepository = tariffRateRepository;
         this.customsOfficeRepository = customsOfficeRepository;
         this.authHelper = authHelper;
+        this.lineAnalysisRepository = lineAnalysisRepository;
     }
 
     @GetMapping
@@ -90,6 +93,21 @@ public class DeclarationController {
         List<DeclarationAuditLogDto> dtos = logs.stream().map(l -> new DeclarationAuditLogDto(
                 l.getId(), l.getAction().name(), l.getFromStatus(), l.getToStatus(),
                 l.getNote(), l.getUserName(), l.getCreatedAt()
+        )).toList();
+        return ResponseEntity.ok(ApiResponse.of(dtos));
+    }
+
+    @GetMapping("/{id}/analyses")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DECLARANT', 'CONTROLLER')")
+    public ResponseEntity<ApiResponse<List<DeclarationDto.LineAnalysisDto>>> getAnalyses(@PathVariable Long id) {
+        List<LineAnalysis> analyses = lineAnalysisRepository.findByLineItemDeclarationId(id);
+        List<DeclarationDto.LineAnalysisDto> dtos = analyses.stream().map(a -> new DeclarationDto.LineAnalysisDto(
+                a.getId(),
+                a.getLineItem().getId(),
+                a.getResult().name(),
+                a.getComment(),
+                a.getLlmModel(),
+                a.getAnalyzedAt() != null ? a.getAnalyzedAt().toString() : null
         )).toList();
         return ResponseEntity.ok(ApiResponse.of(dtos));
     }

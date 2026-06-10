@@ -74,4 +74,13 @@ public record DeclarationDto(
             BigDecimal vatAmount,
             String currency
     ) {}
+
+    public record LineAnalysisDto(
+            Long id,
+            Long lineItemId,
+            String result,
+            String comment,
+            String llmModel,
+            String analyzedAt
+    ) {}
 }
