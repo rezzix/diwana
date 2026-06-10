@@ -81,6 +81,7 @@ public record DeclarationDto(
             String result,
             String comment,
             String llmModel,
-            String analyzedAt
+            String analyzedAt,
+            Long processingTimeMs
     ) {}
 }

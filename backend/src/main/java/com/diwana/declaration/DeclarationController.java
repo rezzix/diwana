@@ -107,7 +107,8 @@ public class DeclarationController {
                 a.getResult().name(),
                 a.getComment(),
                 a.getLlmModel(),
-                a.getAnalyzedAt() != null ? a.getAnalyzedAt().toString() : null
+                a.getAnalyzedAt() != null ? a.getAnalyzedAt().toString() : null,
+                a.getProcessingTimeMs()
         )).toList();
         return ResponseEntity.ok(ApiResponse.of(dtos));
     }

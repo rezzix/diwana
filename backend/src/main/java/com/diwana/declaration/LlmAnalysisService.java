@@ -79,7 +79,7 @@ public class LlmAnalysisService {
         this.restTemplate = template;
     }
 
-    public record AnalysisResult(LineAnalysis.AnalysisResult result, String comment, String model) {}
+    public record AnalysisResult(LineAnalysis.AnalysisResult result, String comment, String model, long processingTimeMs) {}
 
     /**
      * Analyze a single line item's HS code against its description using the prioritary LLM.
@@ -109,6 +109,7 @@ public class LlmAnalysisService {
                 String baseUrl = model.getUrl().endsWith("/") ? model.getUrl() : model.getUrl() + "/";
                 String url = baseUrl + "chat/completions";
                 log.info("[LLM] Trying model={} for HS analysis of {}...", model.getModel(), hsCode);
+                long start = System.currentTimeMillis();
 
                 Map<String, Object> request = Map.of(
                         "model", model.getModel(),
@@ -126,6 +127,7 @@ public class LlmAnalysisService {
                 String requestBody = objectMapper.writeValueAsString(request);
                 HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
                 ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+                long elapsed = System.currentTimeMillis() - start;
 
                 JsonNode responseJson = objectMapper.readTree(response.getBody());
                 String content = responseJson.path("choices").get(0).path("message").path("content").asText();
@@ -154,8 +156,8 @@ public class LlmAnalysisService {
                     result = LineAnalysis.AnalysisResult.ALIGNED;
                 }
 
-                log.info("[LLM] HS {} analysis result: {} ({})", hsCode, result, comment);
-                return new AnalysisResult(result, comment, model.getModel());
+                log.info("[LLM] HS {} analysis result: {} ({}) in {}ms", hsCode, result, comment, elapsed);
+                return new AnalysisResult(result, comment, model.getModel(), elapsed);
 
             } catch (Exception e) {
                 log.warn("[LLM] Model {} failed for HS analysis: {}", model.getModel(), e.getMessage());
@@ -189,6 +191,7 @@ public class LlmAnalysisService {
                     analysis.setComment(result.comment());
                     analysis.setLlmModel(result.model());
                     analysis.setAnalyzedAt(Instant.now());
+                    analysis.setProcessingTimeMs(result.processingTimeMs());
                     lineAnalysisRepository.save(analysis);
                     analyzed++;
                 } catch (Exception e) {

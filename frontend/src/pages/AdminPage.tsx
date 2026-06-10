@@ -9,7 +9,7 @@ import { getAllTariffRates, createTariffRate, updateTariffRate, deactivateTariff
 import type { TariffRateDto } from '@/api/declarations';
 import { getOrigins, type OriginDto } from '@/api/origins';
 import { listJobs, toggleJob, type JobConfigDto } from '@/api/jobs';
-import { listAiModels, createAiModel, updateAiModel, deleteAiModel, type AiModelDto, type CreateAiModelRequest } from '@/api/aiModels';
+import { listAiModels, createAiModel, updateAiModel, deleteAiModel, getModelResponseTimes, type AiModelDto, type CreateAiModelRequest } from '@/api/aiModels';
 import HsCodeAutocomplete from '@/components/HsCodeAutocomplete';
 import type { UserDto, PaginationInfo } from '@/types';
 
@@ -80,6 +80,7 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
   // AI Models state
   const [aiModels, setAiModels] = useState<AiModelDto[]>([]);
   const [aiModelsLoading, setAiModelsLoading] = useState(true);
+  const [responseTimes, setResponseTimes] = useState<Record<string, number>>({});
   const [showCreateAiModel, setShowCreateAiModel] = useState(false);
   const [aiModelForm, setAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '' });
   const [aiModelCreating, setAiModelCreating] = useState(false);
@@ -144,8 +145,9 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
   const fetchAiModels = async () => {
     setAiModelsLoading(true);
     try {
-      const data = await listAiModels();
+      const [data, times] = await Promise.all([listAiModels(), getModelResponseTimes()]);
       setAiModels(data);
+      setResponseTimes(times);
     } catch {
       setError('Failed to load AI models');
     } finally {
@@ -1264,10 +1266,10 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                   <tr className="bg-gray-50 border-b border-gray-200">
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Provider</th>
                     <th className="text-left px-4 py-3 font-medium text-gray-700">Model</th>
-                    <th className="text-left px-4 py-3 font-medium text-gray-700">URL</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Type</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Deployment</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Order</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Avg Time</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
                   </tr>
@@ -1281,7 +1283,6 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                     <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">{m.provider}</td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-600">{m.model}</td>
-                      <td className="px-4 py-3 text-xs text-gray-500 truncate max-w-[200px]" title={m.url}>{m.url}</td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                           m.type === 'VLM' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
@@ -1294,6 +1295,13 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                       </td>
                       <td className="px-4 py-3 text-center text-sm text-gray-600">
                         {m.callOrder != null ? m.callOrder : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">
+                        {responseTimes[m.model] != null
+                          ? responseTimes[m.model] >= 1000
+                            ? `${(responseTimes[m.model] / 1000).toFixed(1)}s`
+                            : `${responseTimes[m.model]}ms`
+                          : '—'}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className={`inline-block w-2 h-2 rounded-full ${m.active ? 'bg-green-500' : 'bg-red-500'}`} />

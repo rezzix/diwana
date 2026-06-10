@@ -29,6 +29,9 @@ public class LineAnalysis {
     @Column(name = "analyzed_at")
     private Instant analyzedAt;
 
+    @Column(name = "processing_time_ms")
+    private Long processingTimeMs;
+
     public enum AnalysisResult { ALIGNED, MISALIGNED }
 
     public LineAnalysis() {}
@@ -45,4 +48,6 @@ public class LineAnalysis {
     public void setLlmModel(String llmModel) { this.llmModel = llmModel; }
     public Instant getAnalyzedAt() { return analyzedAt; }
     public void setAnalyzedAt(Instant analyzedAt) { this.analyzedAt = analyzedAt; }
+    public Long getProcessingTimeMs() { return processingTimeMs; }
+    public void setProcessingTimeMs(Long processingTimeMs) { this.processingTimeMs = processingTimeMs; }
 }

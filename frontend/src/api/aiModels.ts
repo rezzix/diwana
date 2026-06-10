@@ -53,3 +53,7 @@ export function updateAiModel(id: number, data: UpdateAiModelRequest): Promise<A
 export function deleteAiModel(id: number): Promise<void> {
   return apiDelete(`/ai-models/${id}`);
 }
+
+export async function getModelResponseTimes(): Promise<Record<string, number>> {
+  return apiGet<Record<string, number>>('/ai-models/response-times');
+}
