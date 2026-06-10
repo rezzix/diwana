@@ -20,7 +20,7 @@ public class AiModelController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<AiModelDto>>> list() {
-        List<AiModelDto> models = repository.findAllByOrderByProviderAsc().stream()
+        List<AiModelDto> models = repository.findAllByOrderByCallOrderAscNullsLastProviderAsc().stream()
                 .map(AiModelDto::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.of(models));
