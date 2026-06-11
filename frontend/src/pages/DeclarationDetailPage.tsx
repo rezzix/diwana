@@ -520,6 +520,9 @@ export default function DeclarationDetailPage() {
                   RESUBMITTED: 'Resubmitted',
                   INFO_REQUESTED: 'Additional info requested',
                   DELETED: 'Deleted',
+                  LINE_ADDED: 'Line added',
+                  LINE_EDITED: 'Line edited',
+                  LINE_DELETED: 'Line deleted',
                 };
                 const actionColors: Record<string, string> = {
                   CREATED: 'bg-gray-100 text-gray-700',
@@ -530,6 +533,9 @@ export default function DeclarationDetailPage() {
                   RESUBMITTED: 'bg-blue-100 text-blue-700',
                   INFO_REQUESTED: 'bg-purple-100 text-purple-700',
                   DELETED: 'bg-red-100 text-red-700',
+                  LINE_ADDED: 'bg-emerald-100 text-emerald-700',
+                  LINE_EDITED: 'bg-amber-100 text-amber-700',
+                  LINE_DELETED: 'bg-red-100 text-red-700',
                 };
                 return (
                   <div key={log.id} className="px-4 py-3 flex items-start gap-3">

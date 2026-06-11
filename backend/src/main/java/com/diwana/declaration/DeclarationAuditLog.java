@@ -39,7 +39,8 @@ public class DeclarationAuditLog {
     private Instant createdAt;
 
     public enum Action {
-        CREATED, UPDATED, SUBMITTED, APPROVED, REJECTED, RESUBMITTED, INFO_REQUESTED, DELETED
+        CREATED, UPDATED, SUBMITTED, APPROVED, REJECTED, RESUBMITTED, INFO_REQUESTED, DELETED,
+        LINE_ADDED, LINE_EDITED, LINE_DELETED
     }
 
     public Long getId() { return id; }

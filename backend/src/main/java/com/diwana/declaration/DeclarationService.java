@@ -151,6 +151,11 @@ public class DeclarationService {
             throw new BadRequestException("You can only edit your own declarations");
         }
 
+        // Snapshot old lines for audit logging
+        List<String> oldLines = declaration.getLineItems().stream()
+                .map(li -> li.getId() + ":" + li.getHsCode() + " " + li.getDescription() + " x" + li.getQuantity())
+                .toList();
+
         // Delete analyses for line items being removed (FK constraint)
         for (DeclarationLineItem item : declaration.getLineItems()) {
             lineAnalysisRepository.deleteByLineItemId(item.getId());
@@ -187,7 +192,28 @@ public class DeclarationService {
             declaration.setInfoRequestNote(null);
         }
 
-        return declarationRepository.save(declaration);
+        Declaration saved = declarationRepository.save(declaration);
+
+        // Audit: log line item changes
+        List<String> newLines = saved.getLineItems().stream()
+                .map(li -> li.getHsCode() + " " + li.getDescription() + " x" + li.getQuantity())
+                .toList();
+
+        int oldCount = oldLines.size();
+        int newCount = newLines.size();
+
+        if (newCount > oldCount) {
+            logAction(saved, DeclarationAuditLog.Action.LINE_ADDED, null, null,
+                    "Lines: " + oldCount + " → " + newCount, declarant);
+        } else if (newCount < oldCount) {
+            logAction(saved, DeclarationAuditLog.Action.LINE_DELETED, null, null,
+                    "Lines: " + oldCount + " → " + newCount, declarant);
+        } else {
+            logAction(saved, DeclarationAuditLog.Action.LINE_EDITED, null, null,
+                    "Lines updated (" + newCount + " lines)", declarant);
+        }
+
+        return saved;
     }
 
     private TariffRateResolver resolveRates(String hsCode, String countryOfOrigin, BigDecimal dutyRate, BigDecimal vatRate) {
