@@ -31,6 +31,7 @@ public class DeclarationService {
     private final DeclarationAttachmentRepository attachmentRepository;
     private final com.diwana.storage.StorageService storageService;
     private final com.diwana.documenttype.DocumentTypeRepository documentTypeRepository;
+    private final LineAnalysisRepository lineAnalysisRepository;
 
     private final AtomicLong numberCounter = new AtomicLong(System.currentTimeMillis());
 
@@ -39,7 +40,8 @@ public class DeclarationService {
                                OriginRepository originRepository, DeclarationAuditLogRepository auditLogRepository,
                                DeclarationAttachmentRepository attachmentRepository,
                                com.diwana.storage.StorageService storageService,
-                               com.diwana.documenttype.DocumentTypeRepository documentTypeRepository) {
+                               com.diwana.documenttype.DocumentTypeRepository documentTypeRepository,
+                               LineAnalysisRepository lineAnalysisRepository) {
         this.declarationRepository = declarationRepository;
         this.companyService = companyService;
         this.userService = userService;
@@ -49,6 +51,7 @@ public class DeclarationService {
         this.attachmentRepository = attachmentRepository;
         this.storageService = storageService;
         this.documentTypeRepository = documentTypeRepository;
+        this.lineAnalysisRepository = lineAnalysisRepository;
     }
 
     @Transactional
@@ -148,6 +151,10 @@ public class DeclarationService {
             throw new BadRequestException("You can only edit your own declarations");
         }
 
+        // Delete analyses for line items being removed (FK constraint)
+        for (DeclarationLineItem item : declaration.getLineItems()) {
+            lineAnalysisRepository.deleteByLineItemId(item.getId());
+        }
         declaration.getLineItems().clear();
         declaration.setCustomsOffice(request.customsOffice());
         declaration.setNotes(request.notes());
