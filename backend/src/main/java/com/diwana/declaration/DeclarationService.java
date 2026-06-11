@@ -151,9 +151,10 @@ public class DeclarationService {
             throw new BadRequestException("You can only edit your own declarations");
         }
 
-        // Snapshot old lines for audit logging
-        List<String> oldLines = declaration.getLineItems().stream()
-                .map(li -> li.getId() + ":" + li.getHsCode() + " " + li.getDescription() + " x" + li.getQuantity())
+        // Snapshot old lines for audit logging (before clear)
+        record OldLine(Long id, String hsCode, String description, BigDecimal quantity, String unit, BigDecimal unitPrice, BigDecimal totalValue, String currency) {}
+        List<OldLine> oldLines = declaration.getLineItems().stream()
+                .map(li -> new OldLine(li.getId(), li.getHsCode(), li.getDescription(), li.getQuantity(), li.getUnit(), li.getUnitPrice(), li.getTotalValue(), li.getCurrency()))
                 .toList();
 
         // Delete analyses for line items being removed (FK constraint)
@@ -194,23 +195,46 @@ public class DeclarationService {
 
         Declaration saved = declarationRepository.save(declaration);
 
-        // Audit: log line item changes
-        List<String> newLines = saved.getLineItems().stream()
-                .map(li -> li.getHsCode() + " " + li.getDescription() + " x" + li.getQuantity())
-                .toList();
-
+        // Audit: log per-line changes
+        List<DeclarationLineItem> newLines = saved.getLineItems();
         int oldCount = oldLines.size();
         int newCount = newLines.size();
+        List<String> changes = new java.util.ArrayList<>();
 
-        if (newCount > oldCount) {
-            logAction(saved, DeclarationAuditLog.Action.LINE_ADDED, null, null,
-                    "Lines: " + oldCount + " → " + newCount, declarant);
-        } else if (newCount < oldCount) {
-            logAction(saved, DeclarationAuditLog.Action.LINE_DELETED, null, null,
-                    "Lines: " + oldCount + " → " + newCount, declarant);
-        } else {
-            logAction(saved, DeclarationAuditLog.Action.LINE_EDITED, null, null,
-                    "Lines updated (" + newCount + " lines)", declarant);
+        // Detect edits: compare old lines with new lines by position
+        int minCount = Math.min(oldCount, newCount);
+        for (int i = 0; i < minCount; i++) {
+            OldLine old = oldLines.get(i);
+            DeclarationLineItem nw = newLines.get(i);
+            List<String> fields = new java.util.ArrayList<>();
+            if (!old.hsCode.equals(nw.getHsCode())) fields.add("hsCode: " + old.hsCode + " → " + nw.getHsCode());
+            if (!old.description.equals(nw.getDescription())) fields.add("description: '" + old.description + "' → '" + nw.getDescription() + "'");
+            if (old.quantity.compareTo(nw.getQuantity()) != 0) fields.add("quantity: " + old.quantity + " → " + nw.getQuantity());
+            if (!java.util.Objects.equals(old.unit, nw.getUnit())) fields.add("unit: " + old.unit + " → " + nw.getUnit());
+            if (old.unitPrice.compareTo(nw.getUnitPrice()) != 0) fields.add("unitPrice: " + old.unitPrice + " → " + nw.getUnitPrice());
+            if (old.totalValue.compareTo(nw.getTotalValue()) != 0) fields.add("totalValue: " + old.totalValue + " → " + nw.getTotalValue());
+            if (!java.util.Objects.equals(old.currency, nw.getCurrency())) fields.add("currency: " + old.currency + " → " + nw.getCurrency());
+            if (!fields.isEmpty()) {
+                changes.add("Line " + (i + 1) + " (" + nw.getHsCode() + "): " + String.join(", ", fields));
+            }
+        }
+        // Lines added beyond old count
+        for (int i = minCount; i < newCount; i++) {
+            DeclarationLineItem nw = newLines.get(i);
+            changes.add("Line " + (i + 1) + " added: " + nw.getHsCode() + " " + nw.getDescription() + " x" + nw.getQuantity());
+        }
+        // Lines removed beyond new count
+        for (int i = minCount; i < oldCount; i++) {
+            OldLine old = oldLines.get(i);
+            changes.add("Line " + (i + 1) + " removed: " + old.hsCode + " " + old.description + " x" + old.quantity);
+        }
+
+        if (!changes.isEmpty()) {
+            String note = String.join("; ", changes);
+            DeclarationAuditLog.Action action = newCount > oldCount ? DeclarationAuditLog.Action.LINE_ADDED
+                    : newCount < oldCount ? DeclarationAuditLog.Action.LINE_DELETED
+                    : DeclarationAuditLog.Action.LINE_EDITED;
+            logAction(saved, action, null, null, note, declarant);
         }
 
         return saved;
