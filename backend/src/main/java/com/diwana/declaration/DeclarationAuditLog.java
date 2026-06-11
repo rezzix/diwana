@@ -16,7 +16,7 @@ public class DeclarationAuditLog {
     private Declaration declaration;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "VARCHAR(30)")
     private Action action;
 
     @Column(name = "from_status")
