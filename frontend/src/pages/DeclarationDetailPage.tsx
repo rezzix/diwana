@@ -45,10 +45,11 @@ export default function DeclarationDetailPage() {
       const d = await getDeclaration(Number(id), signal);
       if (signal?.aborted) return;
       setDecl(d);
-      const [atts, logs] = await Promise.all([
-        getAttachments(Number(id), signal),
-        getAuditLog(Number(id), signal),
-      ]);
+      const attsPromise = getAttachments(Number(id), signal);
+      // Audit log is only visible to controllers/admins
+      const isControllerOrAdmin = user?.role === 'CONTROLLER' || user?.role === 'ADMIN';
+      const logsPromise = isControllerOrAdmin ? getAuditLog(Number(id), signal) : Promise.resolve([]);
+      const [atts, logs] = await Promise.all([attsPromise, logsPromise]);
       if (signal?.aborted) return;
       setAttachments(atts);
       setAuditLog(logs);
@@ -231,7 +232,16 @@ export default function DeclarationDetailPage() {
   }
 
   if (!decl) {
-    return <div className="min-h-screen bg-surface p-6 text-center text-gray-500">Declaration not found.</div>;
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">📄</div>
+          <h2 className="text-lg font-medium text-gray-900 mb-2">Declaration not found</h2>
+          <p className="text-sm text-gray-500 mb-4">The declaration may not exist or you may not have access to it.</p>
+          <Link to="/declarations" className="text-sm text-primary-600 hover:underline">&larr; Back to declarations</Link>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -503,8 +513,8 @@ export default function DeclarationDetailPage() {
           );
         })()}
 
-        {/* Audit Trail */}
-        {auditLog.length > 0 && (
+        {/* Audit Trail — visible only to controllers and admins */}
+        {isController && auditLog.length > 0 && (
           <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="p-4 border-b border-gray-200 bg-gray-50">
               <h2 className="font-semibold text-gray-900">Audit Trail</h2>

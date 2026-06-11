@@ -8,6 +8,18 @@ const client = axios.create({
   timeout: 600000, // 10 min — VLM calls can take minutes
 });
 
+// Redirect to login on 401 (session expired)
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      // Session expired — redirect to login
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export async function apiGet<T>(url: string, params?: Record<string, string | number>, signal?: AbortSignal): Promise<T> {
   const res = await client.get<ApiResponse<T>>(url, { params, signal });
   return res.data.data;

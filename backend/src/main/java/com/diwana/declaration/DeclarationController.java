@@ -87,7 +87,7 @@ public class DeclarationController {
     }
 
     @GetMapping("/{id}/audit-log")
-    @PreAuthorize("hasAnyRole('ADMIN', 'DECLARANT', 'CONTROLLER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTROLLER')")
     public ResponseEntity<ApiResponse<List<DeclarationAuditLogDto>>> getAuditLog(@PathVariable Long id) {
         List<DeclarationAuditLog> logs = declarationService.getAuditLog(id);
         List<DeclarationAuditLogDto> dtos = logs.stream().map(l -> new DeclarationAuditLogDto(
