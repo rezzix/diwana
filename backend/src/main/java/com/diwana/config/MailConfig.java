@@ -1,15 +1,17 @@
 package com.diwana.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.stereotype.Component;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Properties;
 
 /**
- * Overrides the mail sender password with the real key from ai-keys.csv.
+ * Overrides the mail sender password with the real key from ai-keys.csv
+ * and reinitializes the session so authentication works.
  * Runs after AiKeyLoader (@Order(100)) so keys are available.
  */
 @Component
@@ -31,6 +33,11 @@ public class MailConfig implements CommandLineRunner {
         String smtpKey = aiKeyLoader.getKey("brevo", "smtp", null);
         if (smtpKey != null) {
             mailSender.setPassword(smtpKey);
+            // Force session recreation with the new password
+            Properties props = mailSender.getJavaMailProperties();
+            props.put("mail.smtp.auth", "true");
+            props.put("mail.smtp.starttls.enable", "true");
+            mailSender.setSession(null);
             log.info("[Mail] SMTP password loaded from ai-keys.csv");
         } else {
             log.warn("[Mail] No Brevo SMTP key found in ai-keys.csv — email notifications will not work");
