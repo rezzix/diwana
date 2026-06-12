@@ -32,6 +32,7 @@ public class DeclarationService {
     private final com.diwana.storage.StorageService storageService;
     private final com.diwana.documenttype.DocumentTypeRepository documentTypeRepository;
     private final LineAnalysisRepository lineAnalysisRepository;
+    private final com.diwana.notification.NotificationService notificationService;
 
     private final AtomicLong numberCounter = new AtomicLong(System.currentTimeMillis());
 
@@ -41,7 +42,8 @@ public class DeclarationService {
                                DeclarationAttachmentRepository attachmentRepository,
                                com.diwana.storage.StorageService storageService,
                                com.diwana.documenttype.DocumentTypeRepository documentTypeRepository,
-                               LineAnalysisRepository lineAnalysisRepository) {
+                               LineAnalysisRepository lineAnalysisRepository,
+                               com.diwana.notification.NotificationService notificationService) {
         this.declarationRepository = declarationRepository;
         this.companyService = companyService;
         this.userService = userService;
@@ -52,6 +54,7 @@ public class DeclarationService {
         this.storageService = storageService;
         this.documentTypeRepository = documentTypeRepository;
         this.lineAnalysisRepository = lineAnalysisRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -360,6 +363,10 @@ public class DeclarationService {
         declaration.setInfoRequestNote(note);
         Declaration saved = declarationRepository.save(declaration);
         logAction(saved, DeclarationAuditLog.Action.INFO_REQUESTED, fromStatus, saved.getStatus().name(), note, controller);
+
+        // Send email notification to declarant
+        notificationService.sendInfoRequestNotification(saved, note);
+
         return saved;
     }
 
