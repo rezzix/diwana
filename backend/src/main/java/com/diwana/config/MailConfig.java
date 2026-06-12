@@ -1,5 +1,6 @@
 package com.diwana.config;
 
+import jakarta.mail.Session;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -11,7 +12,7 @@ import java.util.Properties;
 
 /**
  * Overrides the mail sender password with the real key from ai-keys.csv
- * and reinitializes the session so authentication works.
+ * and creates a new Session so authentication works.
  * Runs after AiKeyLoader (@Order(100)) so keys are available.
  */
 @Component
@@ -33,11 +34,18 @@ public class MailConfig implements CommandLineRunner {
         String smtpKey = aiKeyLoader.getKey("brevo", "smtp", null);
         if (smtpKey != null) {
             mailSender.setPassword(smtpKey);
-            // Force session recreation with the new password
-            Properties props = mailSender.getJavaMailProperties();
+            // Recreate the session with the real password
+            Properties props = new Properties();
+            props.putAll(mailSender.getJavaMailProperties());
             props.put("mail.smtp.auth", "true");
             props.put("mail.smtp.starttls.enable", "true");
-            mailSender.setSession(null);
+            Session session = Session.getInstance(props, new jakarta.mail.Authenticator() {
+                @Override
+                protected jakarta.mail.PasswordAuthentication getPasswordAuthentication() {
+                    return new jakarta.mail.PasswordAuthentication(mailSender.getUsername(), smtpKey);
+                }
+            });
+            mailSender.setSession(session);
             log.info("[Mail] SMTP password loaded from ai-keys.csv");
         } else {
             log.warn("[Mail] No Brevo SMTP key found in ai-keys.csv — email notifications will not work");
