@@ -1,6 +1,6 @@
 diwana:
   mode: dev
-  version: 2606121230
+  version: 2606121232
   openai:
     api-key: ${OPENAI_API_KEY:}
     base-url: ${OPENAI_BASE_URL:https://api.together.ai/v1}
@@ -42,7 +42,7 @@ spring:
   mail:
     host: smtp-relay.brevo.com
     port: 587
-    username: boughaba@gmail.com
+    username: ad6e96001@smtp-brevo.com
     password: ${MAIL_PASSWORD:PLACEHOLDER-BREVO}
     properties:
       mail:
