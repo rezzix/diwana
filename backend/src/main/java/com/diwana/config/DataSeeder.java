@@ -628,7 +628,7 @@ public class DataSeeder implements CommandLineRunner {
             // Admin
             createUser("admin", "admin@diwana.ma", "Admin", "User", User.Role.ADMIN, null, null),
             // SMIE declarants
-            createUser("ahmed", "ahmed@smie.ma", "Ahmed", "Benali", User.Role.DECLARANT, smie, null),
+            createUser("ahmed", "boughaba@gmail.com", "Ahmed", "Benali", User.Role.DECLARANT, smie, null),
             createUser("fatima", "fatima@smie.ma", "Fatima", "Zahra", User.Role.DECLARANT, smie, null),
             // AFL declarants
             createUser("youssef", "youssef@afl.ma", "Youssef", "El Amrani", User.Role.DECLARANT, afl, null),
