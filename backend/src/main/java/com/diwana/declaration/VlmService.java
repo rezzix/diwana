@@ -229,7 +229,7 @@ public class VlmService {
                             Map.of("role", "system", "content", SYSTEM_PROMPT),
                             Map.of("role", "user", "content", content)
                     ),
-                    "max_tokens", 16384
+                    "max_tokens", 8192
             );
 
             HttpHeaders headers = new HttpHeaders();
