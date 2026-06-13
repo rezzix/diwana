@@ -10,6 +10,7 @@ export interface AiModelDto {
   active: boolean;
   deployment: string | null;
   callOrder: number | null;
+  maxTokens: number | null;
 }
 
 export interface CreateAiModelRequest {
@@ -21,6 +22,7 @@ export interface CreateAiModelRequest {
   active: boolean;
   deployment: string | null;
   callOrder: number | null;
+  maxTokens: number | null;
 }
 
 export interface UpdateAiModelRequest {
@@ -32,6 +34,7 @@ export interface UpdateAiModelRequest {
   active: boolean;
   deployment: string | null;
   callOrder: number | null;
+  maxTokens: number | null;
 }
 
 export function listAiModels(): Promise<AiModelDto[]> {

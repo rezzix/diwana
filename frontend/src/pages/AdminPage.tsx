@@ -82,10 +82,10 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
   const [aiModelsLoading, setAiModelsLoading] = useState(true);
   const [responseTimes, setResponseTimes] = useState<Record<string, number>>({});
   const [showCreateAiModel, setShowCreateAiModel] = useState(false);
-  const [aiModelForm, setAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '' });
+  const [aiModelForm, setAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '', maxTokens: '' });
   const [aiModelCreating, setAiModelCreating] = useState(false);
   const [editingAiModel, setEditingAiModel] = useState<AiModelDto | null>(null);
-  const [editAiModelForm, setEditAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '' });
+  const [editAiModelForm, setEditAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '', maxTokens: '' });
 
   const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -1076,10 +1076,11 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                     active: aiModelForm.active,
                     deployment: aiModelForm.deployment || null,
                     callOrder: aiModelForm.callOrder ? Number(aiModelForm.callOrder) : null,
+                    maxTokens: aiModelForm.maxTokens ? Number(aiModelForm.maxTokens) : null,
                   });
                   setSuccess(`AI model "${aiModelForm.model}" created`);
                   setShowCreateAiModel(false);
-                  setAiModelForm({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '' });
+                  setAiModelForm({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '', maxTokens: '' });
                   fetchAiModels();
                 } catch (err: unknown) {
                   setError(err instanceof Error ? err.message : 'Failed to create AI model');
@@ -1146,6 +1147,14 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                     <p className="mt-1 text-xs text-gray-400">Empty = not auto-used. Lower = higher priority.</p>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
+                    <input type="number" min="1" value={aiModelForm.maxTokens}
+                      onChange={(e) => setAiModelForm({ ...aiModelForm, maxTokens: e.target.value })}
+                      placeholder="e.g. 16384"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-gray-400">Max output tokens. Empty = default (4096).</p>
+                  </div>
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={aiModelForm.active}
@@ -1179,6 +1188,7 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                     active: editAiModelForm.active,
                     deployment: editAiModelForm.deployment || null,
                     callOrder: editAiModelForm.callOrder ? Number(editAiModelForm.callOrder) : null,
+                    maxTokens: editAiModelForm.maxTokens ? Number(editAiModelForm.maxTokens) : null,
                   });
                   setSuccess(`AI model "${editAiModelForm.model}" updated`);
                   setEditingAiModel(null);
@@ -1242,6 +1252,14 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
                     <p className="mt-1 text-xs text-gray-400">Empty = not auto-used. Lower = higher priority.</p>
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Tokens</label>
+                    <input type="number" min="1" value={editAiModelForm.maxTokens}
+                      onChange={(e) => setEditAiModelForm({ ...editAiModelForm, maxTokens: e.target.value })}
+                      placeholder="e.g. 16384"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                    <p className="mt-1 text-xs text-gray-400">Max output tokens. Empty = default (4096).</p>
+                  </div>
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={editAiModelForm.active}
@@ -1269,6 +1287,7 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Type</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Deployment</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Order</th>
+                    <th className="text-center px-4 py-3 font-medium text-gray-700">Max Tokens</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Avg Time</th>
                     <th className="text-center px-4 py-3 font-medium text-gray-700">Active</th>
                     <th className="text-right px-4 py-3 font-medium text-gray-700">Actions</th>
@@ -1276,9 +1295,9 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                 </thead>
                 <tbody>
                   {aiModelsLoading ? (
-                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                    <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading...</td></tr>
                   ) : aiModels.length === 0 ? (
-                    <tr><td colSpan={8} className="text-center py-8 text-gray-400">No AI models found</td></tr>
+                    <tr><td colSpan={9} className="text-center py-8 text-gray-400">No AI models found</td></tr>
                   ) : aiModels.map((m) => (
                     <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 font-medium text-gray-900">{m.provider}</td>
@@ -1318,6 +1337,7 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                                   provider: o.provider, model: o.model, url: o.url, apiKey: o.apiKey,
                                   type: o.type, active: o.active, deployment: o.deployment,
                                   callOrder: o.id === m.id ? 1 : (o.callOrder ?? 0) + 1,
+                                  maxTokens: o.maxTokens,
                                 }));
                               await Promise.all(updates);
                               setSuccess(`"${m.model}" set as default`);
@@ -1334,7 +1354,7 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                         )}
                         <button onClick={() => {
                           setEditingAiModel(m);
-                          setEditAiModelForm({ provider: m.provider, model: m.model, url: m.url, apiKey: m.apiKey, type: m.type, active: m.active, deployment: m.deployment || '', callOrder: m.callOrder != null ? String(m.callOrder) : '' });
+                          setEditAiModelForm({ provider: m.provider, model: m.model, url: m.url, apiKey: m.apiKey, type: m.type, active: m.active, deployment: m.deployment || '', callOrder: m.callOrder != null ? String(m.callOrder) : '', maxTokens: m.maxTokens != null ? String(m.maxTokens) : '' });
                           setShowCreateAiModel(false);
                         }}
                           className="text-xs px-2 py-1 bg-primary-50 text-primary-600 rounded hover:bg-primary-100 transition-colors">

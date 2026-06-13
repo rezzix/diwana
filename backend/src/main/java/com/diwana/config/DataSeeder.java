@@ -515,37 +515,37 @@ public class DataSeeder implements CommandLineRunner {
         // Format: provider;model;key
         // until then, models are seeded with placeholder keys — edit them in the admin UI.
         record SeedModel(String provider, String model, String url, String placeholderKey, String type,
-                         String deployment, Integer callOrder) {}
+                         String deployment, Integer callOrder, Integer maxTokens) {}
 
         List<SeedModel> seeds = List.of(
             new SeedModel("HuggingFace", "Qwen/Qwen3.6-35B-A3B-FP8",
-                "https://nf4tvxqzesalmkqq.us-east-2.aws.endpoints.huggingface.cloud/v1", "PLACEHOLDER-HF", "VLM", "dedicated", 1),
+                "https://nf4tvxqzesalmkqq.us-east-2.aws.endpoints.huggingface.cloud/v1", "PLACEHOLDER-HF", "VLM", "dedicated", 1, 16384),
             new SeedModel("Together AI", "google/gemma-4-31B-it",
-                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "VLM", "serverless", 2),
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "VLM", "serverless", 2, 16384),
             new SeedModel("Together AI", "moonshotai/Kimi-K2.6",
-                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-2", "VLM", "serverless", null),
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-2", "VLM", "serverless", null, 16384),
             new SeedModel("Fireworks AI", "accounts/fireworks/models/kimi-k2p6",
-                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-1", "VLM", "serverless", null),
+                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-1", "VLM", "serverless", null, 16384),
             new SeedModel("Fireworks AI", "accounts/fireworks/models/qwen3p6-plus",
-                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-2", "VLM", "serverless", null),
+                "https://api.fireworks.ai/inference/v1", "PLACEHOLDER-FIREWORKS-2", "VLM", "serverless", null, 16384),
             new SeedModel("HuggingFace", "unsloth/Qwen3.6-27B-MTP-GGUF",
-                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 3),
+                "https://xw1di2s2tvxquwea.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 3, 16384),
             new SeedModel("HuggingFace", "ggml-org/gemma-4-26B-A4B-it-GGUF",
-                "https://gsgwct02nmeh1hku.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 4),
+                "https://gsgwct02nmeh1hku.us-east-1.aws.endpoints.huggingface.cloud", "PLACEHOLDER-HF", "VLM", "dedicated", 4, 16384),
             new SeedModel("HuggingFace", "google/gemma-4-26B-A4B-it",
-                "https://hg6bm3g2bn195u7k.us-east-2.aws.endpoints.huggingface.cloud/v1", "PLACEHOLDER-HF", "VLM", "dedicated", null),
+                "https://hg6bm3g2bn195u7k.us-east-2.aws.endpoints.huggingface.cloud/v1", "PLACEHOLDER-HF", "VLM", "dedicated", null, 16384),
             new SeedModel("HuggingFace", "deepseek-ai/DeepSeek-OCR",
-                "https://eskjck2tt5b7z9xl.us-east-1.aws.endpoints.huggingface.cloud/v1", "PLACEHOLDER-HF", "VLM", "dedicated", null),
+                "https://eskjck2tt5b7z9xl.us-east-1.aws.endpoints.huggingface.cloud/v1", "PLACEHOLDER-HF", "VLM", "dedicated", null, 4096),
             new SeedModel("DeepSeek", "deepseek-v4-flash",
-                "https://api.deepseek.com/v1", "PLACEHOLDER-DEEPSEEK-1", "LLM", "serverless", null),
+                "https://api.deepseek.com/v1", "PLACEHOLDER-DEEPSEEK-1", "LLM", "serverless", null, 512),
             new SeedModel("Together AI", "Qwen/Qwen2.5-7B-Instruct-Turbo",
-                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "LLM", "serverless", null)
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "LLM", "serverless", null, 512)
         );
 
         List<AiModel> models = seeds.stream().map(s -> new AiModel(
                 s.provider, s.model, s.url,
                 aiKeyLoader.getKey(s.provider, s.model, s.placeholderKey),
-                s.type, true, s.deployment, s.callOrder
+                s.type, true, s.deployment, s.callOrder, s.maxTokens
         )).toList();
 
         aiModelRepository.saveAll(models);

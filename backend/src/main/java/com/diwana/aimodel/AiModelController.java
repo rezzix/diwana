@@ -49,7 +49,7 @@ public class AiModelController {
     public ResponseEntity<ApiResponse<AiModelDto>> create(@RequestBody AiModelDto.CreateRequest request) {
         AiModel model = new AiModel(request.provider(), request.model(), request.url(),
                 request.apiKey(), request.type(), request.active(),
-                request.deployment(), request.callOrder());
+                request.deployment(), request.callOrder(), request.maxTokens());
         model = repository.save(model);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.of(AiModelDto.from(model)));
     }
@@ -68,6 +68,7 @@ public class AiModelController {
         model.setActive(request.active());
         model.setDeployment(request.deployment());
         model.setCallOrder(request.callOrder());
+        model.setMaxTokens(request.maxTokens());
         model = repository.save(model);
         return ResponseEntity.ok(ApiResponse.of(AiModelDto.from(model)));
     }

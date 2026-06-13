@@ -34,10 +34,13 @@ public class AiModel {
     @Column(name = "call_order")
     private Integer callOrder; // priority order for fallback; null = do not auto-use
 
+    @Column(name = "max_tokens")
+    private Integer maxTokens; // max output tokens for this model; null = use default
+
     public AiModel() {}
 
     public AiModel(String provider, String model, String url, String apiKey, String type, boolean active,
-                   String deployment, Integer callOrder) {
+                   String deployment, Integer callOrder, Integer maxTokens) {
         this.provider = provider;
         this.model = model;
         this.url = url;
@@ -46,6 +49,7 @@ public class AiModel {
         this.active = active;
         this.deployment = deployment;
         this.callOrder = callOrder;
+        this.maxTokens = maxTokens;
     }
 
     public Long getId() { return id; }
@@ -66,4 +70,6 @@ public class AiModel {
     public void setDeployment(String deployment) { this.deployment = deployment; }
     public Integer getCallOrder() { return callOrder; }
     public void setCallOrder(Integer callOrder) { this.callOrder = callOrder; }
+    public Integer getMaxTokens() { return maxTokens; }
+    public void setMaxTokens(Integer maxTokens) { this.maxTokens = maxTokens; }
 }

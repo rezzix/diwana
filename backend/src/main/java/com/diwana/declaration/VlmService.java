@@ -45,6 +45,7 @@ public class VlmService {
 
     private static final int RENDER_DPI = 72;
     private static final int MAX_PAGES = 3;
+    private static final int DEFAULT_MAX_TOKENS = 4096;
 
     /** Inner record pairing base64 image data with its MIME type. */
     private record ImageData(String mimeType, String base64) {}
@@ -158,7 +159,8 @@ public class VlmService {
                 String url = baseUrl + "chat/completions";
                 log.info("[VLM] Trying model={} at provider={} (callOrder={})...", model.getModel(), model.getProvider(), model.getCallOrder());
                 long start = System.currentTimeMillis();
-                String result = callVlmApi(images, url, model.getModel(), model.getApiKey());
+                String result = callVlmApi(images, url, model.getModel(), model.getApiKey(),
+                        model.getMaxTokens() != null ? model.getMaxTokens() : DEFAULT_MAX_TOKENS);
                 long elapsed = System.currentTimeMillis() - start;
                 log.info("[VLM] Model {} succeeded in {}ms", model.getModel(), elapsed);
                 return new VlmResult(result, model.getModel(), url, elapsed);
@@ -211,7 +213,7 @@ public class VlmService {
         return images;
     }
 
-    private String callVlmApi(List<ImageData> images, String url, String model, String apiKey) {
+    private String callVlmApi(List<ImageData> images, String url, String model, String apiKey, int maxTokens) {
         try {
             log.info("[VLM] Building request payload with {} image(s), model={}...", images.size(), model);
             List<Map<String, Object>> content = new ArrayList<>();
@@ -229,7 +231,7 @@ public class VlmService {
                             Map.of("role", "system", "content", SYSTEM_PROMPT),
                             Map.of("role", "user", "content", content)
                     ),
-                    "max_tokens", 4096
+                    "max_tokens", maxTokens
             );
 
             HttpHeaders headers = new HttpHeaders();

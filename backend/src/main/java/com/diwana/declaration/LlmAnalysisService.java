@@ -117,7 +117,7 @@ public class LlmAnalysisService {
                                 Map.of("role", "system", "content", SYSTEM_PROMPT),
                                 Map.of("role", "user", "content", userPrompt)
                         ),
-                        "max_tokens", 512
+                        "max_tokens", model.getMaxTokens() != null ? model.getMaxTokens() : 512
                 );
 
                 HttpHeaders headers = new HttpHeaders();
