@@ -1316,6 +1316,9 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                         {m.callOrder != null ? m.callOrder : '—'}
                       </td>
                       <td className="px-4 py-3 text-center text-sm text-gray-600">
+                        {m.maxTokens != null ? m.maxTokens.toLocaleString() : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">
                         {responseTimes[m.model] != null
                           ? responseTimes[m.model] >= 1000
                             ? `${(responseTimes[m.model] / 1000).toFixed(1)}s`
