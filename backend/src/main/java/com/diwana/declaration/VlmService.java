@@ -176,7 +176,35 @@ public class VlmService {
         throw last;
     }
 
-    private List<ImageData> convertToImages(byte[] fileBytes, String contentType) throws IOException {
+    /**
+     * Test a single VLM model against a document — used by the admin "Test Models" feature.
+     * Does NOT persist results; returns the extraction output directly.
+     */
+    public VlmResult extractInvoiceDataWithModel(byte[] fileBytes, String contentType, AiModel model) {
+        log.info("[VLM-TEST] Starting test extraction for model={} provider={}", model.getModel(), model.getProvider());
+
+        List<ImageData> images;
+        try {
+            images = convertToImages(fileBytes, contentType);
+        } catch (IOException e) {
+            throw new VlmException("Failed to convert document: " + e.getMessage(), e);
+        }
+        if (images.isEmpty()) {
+            throw new VlmException("Could not extract any images from the document");
+        }
+
+        String baseUrl = model.getUrl().endsWith("/") ? model.getUrl() : model.getUrl() + "/";
+        String url = baseUrl + "chat/completions";
+        long start = System.currentTimeMillis();
+        String result = callVlmApi(images, url, model.getModel(), model.getApiKey(),
+                model.getMaxTokens() != null ? model.getMaxTokens() : DEFAULT_MAX_TOKENS);
+        long elapsed = System.currentTimeMillis() - start;
+        log.info("[VLM-TEST] Model {} completed in {}ms", model.getModel(), elapsed);
+
+        return new VlmResult(result, model.getModel(), url, elapsed);
+    }
+
+    List<ImageData> convertToImages(byte[] fileBytes, String contentType) throws IOException {
         List<ImageData> images = new ArrayList<>();
 
         if (contentType != null && contentType.equals("application/pdf")) {
@@ -213,7 +241,7 @@ public class VlmService {
         return images;
     }
 
-    private String callVlmApi(List<ImageData> images, String url, String model, String apiKey, int maxTokens) {
+    String callVlmApi(List<ImageData> images, String url, String model, String apiKey, int maxTokens) {
         try {
             log.info("[VLM] Building request payload with {} image(s), model={}...", images.size(), model);
             List<Map<String, Object>> content = new ArrayList<>();

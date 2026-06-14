@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { listUsers, createUser, deactivateUser, type CreateUserRequest } from '@/api/users';
@@ -9,7 +9,7 @@ import { getAllTariffRates, createTariffRate, updateTariffRate, deactivateTariff
 import type { TariffRateDto } from '@/api/declarations';
 import { getOrigins, type OriginDto } from '@/api/origins';
 import { listJobs, toggleJob, type JobConfigDto } from '@/api/jobs';
-import { listAiModels, createAiModel, updateAiModel, deleteAiModel, getModelResponseTimes, type AiModelDto, type CreateAiModelRequest } from '@/api/aiModels';
+import { listAiModels, createAiModel, updateAiModel, deleteAiModel, getModelResponseTimes, testAiModel, type AiModelDto, type CreateAiModelRequest, type AiModelTestResult } from '@/api/aiModels';
 import HsCodeAutocomplete from '@/components/HsCodeAutocomplete';
 import type { UserDto, PaginationInfo } from '@/types';
 
@@ -86,6 +86,13 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
   const [aiModelCreating, setAiModelCreating] = useState(false);
   const [editingAiModel, setEditingAiModel] = useState<AiModelDto | null>(null);
   const [editAiModelForm, setEditAiModelForm] = useState({ provider: '', model: '', url: '', apiKey: '', type: 'VLM', active: true, deployment: '', callOrder: '', maxTokens: '' });
+
+  // Test Models state
+  const [testFile, setTestFile] = useState<File | null>(null);
+  const [selectedModelIds, setSelectedModelIds] = useState<Set<number>>(new Set());
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResults, setTestResults] = useState<Map<number, AiModelTestResult>>(new Map());
+  const testAbortRef = useRef<AbortController | null>(null);
 
   const fetchUsers = async (signal?: AbortSignal) => {
     setLoading(true);
@@ -1368,6 +1375,163 @@ export default function AdminPage({ defaultTab, tabs }: { defaultTab?: string; t
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Test Models card */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+              <h2 className="font-semibold text-gray-900">Test Models</h2>
+              <p className="text-sm text-gray-500">Upload an invoice document and test it against selected VLM models in parallel.</p>
+
+              {/* File upload */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Document *</label>
+                <input type="file" accept=".pdf,image/*"
+                  onChange={(e) => { setTestFile(e.target.files?.[0] ?? null); setTestResults(new Map()); }}
+                  className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+                />
+                {testFile && (
+                  <p className="mt-1 text-xs text-gray-500">{testFile.name} ({(testFile.size / 1024).toFixed(1)} KB)</p>
+                )}
+              </div>
+
+              {/* Model selection */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700">Select VLM Models</label>
+                  <div className="flex gap-2">
+                    <button type="button"
+                      onClick={() => {
+                        const vlmIds = aiModels.filter(m => m.type === 'VLM' && m.active).map(m => m.id);
+                        setSelectedModelIds(new Set(vlmIds));
+                      }}
+                      className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                    >Select all</button>
+                    <button type="button"
+                      onClick={() => setSelectedModelIds(new Set())}
+                      className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors"
+                    >Deselect all</button>
+                  </div>
+                </div>
+                <div className="space-y-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                  {aiModels.filter(m => m.type === 'VLM' && m.active).length === 0 ? (
+                    <p className="text-xs text-gray-400 py-2">No active VLM models available</p>
+                  ) : aiModels.filter(m => m.type === 'VLM' && m.active).map(m => (
+                    <label key={m.id} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
+                      <input type="checkbox"
+                        checked={selectedModelIds.has(m.id)}
+                        onChange={(e) => {
+                          const next = new Set(selectedModelIds);
+                          if (e.target.checked) next.add(m.id); else next.delete(m.id);
+                          setSelectedModelIds(next);
+                        }}
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-sm text-gray-700">{m.provider} / <span className="font-mono text-xs">{m.model}</span></span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Run / Cancel */}
+              <div className="flex gap-3">
+                <button type="button"
+                  disabled={!testFile || selectedModelIds.size === 0 || testRunning}
+                  onClick={async () => {
+                    if (!testFile || selectedModelIds.size === 0) return;
+                    setTestRunning(true);
+                    setTestResults(new Map());
+                    const ac = new AbortController();
+                    testAbortRef.current = ac;
+
+                    const promises = Array.from(selectedModelIds).map(async (modelId) => {
+                      try {
+                        const result = await testAiModel(modelId, testFile, ac.signal);
+                        setTestResults(prev => { const next = new Map(prev); next.set(modelId, result); return next; });
+                      } catch (err) {
+                        if (!ac.signal.aborted) {
+                          const modelInfo = aiModels.find(m => m.id === modelId);
+                          setTestResults(prev => {
+                            const next = new Map(prev);
+                            next.set(modelId, {
+                              modelId, provider: modelInfo?.provider ?? '?', model: modelInfo?.model ?? '?',
+                              extractedText: null, processingTimeMs: 0, success: false,
+                              error: err instanceof Error ? err.message : 'Request failed',
+                            });
+                            return next;
+                          });
+                        }
+                      }
+                    });
+
+                    await Promise.allSettled(promises);
+                    setTestRunning(false);
+                    testAbortRef.current = null;
+                  }}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm hover:bg-primary-700 disabled:opacity-50 transition-colors"
+                >
+                  {testRunning ? 'Running...' : 'Run Test'}
+                </button>
+                {testRunning && (
+                  <button type="button"
+                    onClick={() => { testAbortRef.current?.abort(); setTestRunning(false); }}
+                    className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm hover:bg-red-50 transition-colors"
+                  >Cancel</button>
+                )}
+              </div>
+
+              {/* Results */}
+              {(testResults.size > 0 || testRunning) && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-700">
+                      Results ({testResults.size}/{selectedModelIds.size})
+                    </h3>
+                  </div>
+                  {Array.from(selectedModelIds).map(modelId => {
+                    const result = testResults.get(modelId);
+                    const modelInfo = aiModels.find(m => m.id === modelId);
+                    const isPending = !result && testRunning;
+                    return (
+                      <div key={modelId} className={`border rounded-lg p-3 ${result?.success ? 'border-green-200 bg-green-50' : result ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-900">{modelInfo?.provider}</span>
+                            <span className="text-xs font-mono text-gray-500">{modelInfo?.model}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isPending && <span className="text-xs text-gray-400 animate-pulse">⏳ Running...</span>}
+                            {result && (
+                              <>
+                                <span className={`text-xs px-2 py-0.5 rounded font-medium ${result.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                  {result.success ? 'OK' : 'FAILED'}
+                                </span>
+                                {result.success && (
+                                  <span className="text-xs text-gray-500">
+                                    {result.processingTimeMs >= 1000
+                                      ? `${(result.processingTimeMs / 1000).toFixed(1)}s`
+                                      : `${result.processingTimeMs}ms`}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {result && result.success && result.extractedText && (
+                          <details className="mt-2">
+                            <summary className="text-xs text-primary-600 cursor-pointer hover:underline">View extracted text</summary>
+                            <pre className="mt-1 text-xs bg-white border border-gray-200 rounded p-2 overflow-x-auto max-h-60 overflow-y-auto whitespace-pre-wrap break-all">
+                              {result.extractedText}
+                            </pre>
+                          </details>
+                        )}
+                        {result && !result.success && result.error && (
+                          <p className="mt-1 text-xs text-red-600">{result.error}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </>
         )}

@@ -1,4 +1,6 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
+import client from './client';
+import type { ApiResponse } from '@/types';
 
 export interface AiModelDto {
   id: number;
@@ -59,4 +61,23 @@ export function deleteAiModel(id: number): Promise<void> {
 
 export async function getModelResponseTimes(): Promise<Record<string, number>> {
   return apiGet<Record<string, number>>('/ai-models/response-times');
+}
+
+export interface AiModelTestResult {
+  modelId: number;
+  provider: string;
+  model: string;
+  extractedText: string | null;
+  processingTimeMs: number;
+  success: boolean;
+  error: string | null;
+}
+
+export async function testAiModel(modelId: number, file: File, signal?: AbortSignal): Promise<AiModelTestResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await client.post<ApiResponse<AiModelTestResult>>(
+    `/ai-models/${modelId}/test`, formData, { signal }
+  );
+  return res.data.data;
 }

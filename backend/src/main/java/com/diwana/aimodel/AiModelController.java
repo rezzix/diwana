@@ -1,17 +1,21 @@
 package com.diwana.aimodel;
 
 import com.diwana.common.dto.ApiResponse;
+import com.diwana.common.exception.VlmException;
 import com.diwana.declaration.DeclarationAttachment;
 import com.diwana.declaration.DeclarationAttachmentRepository;
 import com.diwana.declaration.LineAnalysis;
 import com.diwana.declaration.LineAnalysisRepository;
+import com.diwana.declaration.VlmService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/ai-models")
@@ -20,13 +24,16 @@ public class AiModelController {
     private final AiModelRepository repository;
     private final DeclarationAttachmentRepository attachmentRepository;
     private final LineAnalysisRepository lineAnalysisRepository;
+    private final VlmService vlmService;
 
     public AiModelController(AiModelRepository repository,
                              DeclarationAttachmentRepository attachmentRepository,
-                             LineAnalysisRepository lineAnalysisRepository) {
+                             LineAnalysisRepository lineAnalysisRepository,
+                             VlmService vlmService) {
         this.repository = repository;
         this.attachmentRepository = attachmentRepository;
         this.lineAnalysisRepository = lineAnalysisRepository;
+        this.vlmService = vlmService;
     }
 
     @GetMapping
@@ -78,6 +85,44 @@ public class AiModelController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         repository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/test")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AiModelTestResult>> testModel(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+
+        AiModel model = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("AI model not found: " + id));
+
+        if (!"VLM".equals(model.getType())) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.of(new AiModelTestResult(model.getId(), model.getProvider(),
+                            model.getModel(), null, 0, false, "Not a VLM model")));
+        }
+
+        try {
+            byte[] fileBytes = file.getBytes();
+            String contentType = file.getContentType();
+            VlmService.VlmResult result = vlmService.extractInvoiceDataWithModel(fileBytes, contentType, model);
+
+            AiModelTestResult testResult = new AiModelTestResult(
+                    model.getId(), model.getProvider(), model.getModel(),
+                    result.text(), result.processingTimeMs(), true, null);
+
+            return ResponseEntity.ok(ApiResponse.of(testResult));
+        } catch (VlmException e) {
+            AiModelTestResult testResult = new AiModelTestResult(
+                    model.getId(), model.getProvider(), model.getModel(),
+                    null, 0, false, e.getMessage());
+            return ResponseEntity.ok(ApiResponse.of(testResult));
+        } catch (IOException e) {
+            AiModelTestResult testResult = new AiModelTestResult(
+                    model.getId(), model.getProvider(), model.getModel(),
+                    null, 0, false, "Failed to read file: " + e.getMessage());
+            return ResponseEntity.ok(ApiResponse.of(testResult));
+        }
     }
 
     @GetMapping("/response-times")
