@@ -537,9 +537,9 @@ public class DataSeeder implements CommandLineRunner {
             new SeedModel("HuggingFace", "deepseek-ai/DeepSeek-OCR",
                 "https://eskjck2tt5b7z9xl.us-east-1.aws.endpoints.huggingface.cloud/v1", "PLACEHOLDER-HF", "VLM", "dedicated", null, 4096),
             new SeedModel("DeepSeek", "deepseek-v4-flash",
-                "https://api.deepseek.com/v1", "PLACEHOLDER-DEEPSEEK-1", "LLM", "serverless", null, 512),
+                "https://api.deepseek.com/v1", "PLACEHOLDER-DEEPSEEK-1", "LLM", "serverless", null, 4096),
             new SeedModel("Together AI", "Qwen/Qwen2.5-7B-Instruct-Turbo",
-                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "LLM", "serverless", null, 512)
+                "https://api.together.ai/v1", "PLACEHOLDER-TOGETHER-1", "LLM", "serverless", null, 4096)
         );
 
         List<AiModel> models = seeds.stream().map(s -> new AiModel(
